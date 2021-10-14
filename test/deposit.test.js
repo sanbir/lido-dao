@@ -131,6 +131,36 @@ contract('Lido with official deposit contract', ([appManager, voting, user1, use
     assertBn(div15(operators_b.add(a1).add(a2).add(a3).add(a4)), operator, 'node operators token balance check')
   }
 
+  it('depositBufferedEther() deposits less then DEFAULT_MAX_DEPOSITS_PER_CALL', async () => {
+    const defaultMaxDepositPerCall = 150 * 32
+    const amountToDeposit = defaultMaxDepositPerCall - 1
+    const depositedETH = Math.floor(amountToDeposit / 32) * 32
+
+    await app.setWithdrawalCredentials(pad('0x0202', 32), { from: voting })
+
+    await operators.addNodeOperator('1', ADDRESS_1, { from: voting })
+    await operators.setNodeOperatorStakingLimit(0, UNLIMITED, { from: voting })
+
+    const keysCount = 100
+    const keys1 = {
+      keys: [...Array(keysCount)].map((v, i) => pad('0xaa01' + i.toString(16), 48)),
+      sigs: [...Array(keysCount)].map((v, i) => pad('0x' + i.toString(16), 96))
+    }
+    const keys2 = {
+      keys: [...Array(keysCount)].map((v, i) => pad('0xaa01' + (i + 100).toString(16), 48)),
+      sigs: [...Array(keysCount)].map((v, i) => pad('0x' + (i + 100).toString(16), 96))
+    }
+    await operators.addSigningKeys(0, keysCount, hexConcat(...keys1.keys), hexConcat(...keys1.sigs), { from: voting })
+    await operators.addSigningKeys(0, keysCount, hexConcat(...keys2.keys), hexConcat(...keys2.sigs), { from: voting })
+
+    await web3.eth.sendTransaction({ to: app.address, from: user1, value: ETH(amountToDeposit) })
+
+    await app.methods['depositBufferedEther()']({ from: depositor })
+
+    assertBn(await app.getTotalPooledEther(), ETH(amountToDeposit))
+    assertBn(await app.getBufferedEther(), ETH(depositedETH))
+  })
+
   it('deposit works', async () => {
     await operators.addNodeOperator('1', ADDRESS_1, { from: voting })
     await operators.addNodeOperator('2', ADDRESS_2, { from: voting })
