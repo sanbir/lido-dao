@@ -274,11 +274,20 @@ contract Lido is ILido, StETH, AragonApp {
 
     /**
     * @notice Send funds to the pool with optional _referral parameter
-    * @dev This function is alternative way to submit funds. Supports optional referral address.
     * @return Amount of StETH shares generated
     */
-    function submit(address _referral) external returns (uint256) {
-        return _submit(_referral);
+    function submit(uint256 _amount, address _referral) external returns (uint256) {
+        uint256 sharesAmount;
+
+        if (_referral != address(0)) {
+            sharesAmount = _submit(_amount, _referral);
+        } else {
+            sharesAmount = _submit(_amount, msg.sender);
+        }
+
+        getMGNO().transferFrom(msg.sender, address(this), _amount);
+
+        return sharesAmount;
     }
 
     /**
@@ -594,6 +603,13 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
+    * @notice Gets mGNO contract handle
+    */
+    function getMGNO() public view returns (IERC20) {
+        return getDepositContract().stake_token();
+    }
+
+    /**
     * @notice Gets authorized oracle address
     * @return address of oracle contract
     */
@@ -659,11 +675,12 @@ contract Lido is ILido, StETH, AragonApp {
 
     /**
     * @dev Process user deposit, mints liquid tokens and increase the pool buffer
+    * @param _amount amount of mGNO.
     * @param _referral address of referral.
     * @return amount of StETH shares generated
     */
-    function _submit(address _referral) internal returns (uint256) {
-        require(msg.value != 0, "ZERO_DEPOSIT");
+    function _submit(uint256 _amount, address _referral) internal returns (uint256) {
+        require(_amount != 0, "ZERO_DEPOSIT");
 
         StakeLimitState.Data memory stakeLimitData = STAKING_STATE_POSITION.getStorageStakeLimitStruct();
         require(!stakeLimitData.isStakingPaused(), "STAKING_PAUSED");
@@ -671,24 +688,24 @@ contract Lido is ILido, StETH, AragonApp {
         if (stakeLimitData.isStakingLimitSet()) {
             uint256 currentStakeLimit = stakeLimitData.calculateCurrentStakeLimit();
 
-            require(msg.value <= currentStakeLimit, "STAKE_LIMIT");
+            require(_amount <= currentStakeLimit, "STAKE_LIMIT");
 
             STAKING_STATE_POSITION.setStorageStakeLimitStruct(
-                stakeLimitData.updatePrevStakeLimit(currentStakeLimit - msg.value)
+                stakeLimitData.updatePrevStakeLimit(currentStakeLimit - _amount)
             );
         }
 
-        uint256 sharesAmount = getSharesByPooledEth(msg.value);
+        uint256 sharesAmount = getSharesByPooledEth(_amount);
         if (sharesAmount == 0) {
             // totalControlledEther is 0: either the first-ever deposit or complete slashing
             // assume that shares correspond to Ether 1-to-1
-            sharesAmount = msg.value;
+            sharesAmount = _amount;
         }
 
         _mintShares(msg.sender, sharesAmount);
 
-        BUFFERED_ETHER_POSITION.setStorageUint256(_getBufferedEther().add(msg.value));
-        emit Submitted(msg.sender, msg.value, _referral);
+        BUFFERED_ETHER_POSITION.setStorageUint256(_getBufferedEther().add(_amount));
+        emit Submitted(msg.sender, _amount, _referral);
 
         _emitTransferAfterMintingShares(msg.sender, sharesAmount);
         return sharesAmount;

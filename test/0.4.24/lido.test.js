@@ -13,7 +13,7 @@ const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 const Lido = artifacts.require('LidoMock.sol')
 const ELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVault.sol')
 const OracleMock = artifacts.require('OracleMock.sol')
-const DepositContractMock = artifacts.require('DepositContractMock.sol')
+const DepositContractMock = artifacts.require('DepositContract.sol')
 const ERC20Mock = artifacts.require('ERC20Mock.sol')
 const ERC721Mock = artifacts.require('ERC721Mock.sol')
 const VaultMock = artifacts.require('AragonVaultMock.sol')
@@ -60,13 +60,21 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
   let elRewardsVault, rewarder
 
   before('deploy base app', async () => {
-    // Deploy the app's base contract.
-    appBase = await Lido.new()
-    oracle = await OracleMock.new()
-    yetAnotherOracle = await OracleMock.new()
-    depositContract = await DepositContractMock.new()
-    nodeOperatorsRegistryBase = await NodeOperatorsRegistry.new()
-    anyToken = await ERC20Mock.new()
+    try {
+      console.log('before')
+
+      // Deploy the app's base contract.
+      appBase = await Lido.new()
+      oracle = await OracleMock.new()
+      yetAnotherOracle = await OracleMock.new()
+      depositContract = await DepositContractMock.new()
+      nodeOperatorsRegistryBase = await NodeOperatorsRegistry.new()
+      anyToken = await ERC20Mock.new()
+    } catch (e) {
+      console.log('before: error')
+
+      console.log(e)
+    }
   })
 
   beforeEach('deploy dao and app', async () => {

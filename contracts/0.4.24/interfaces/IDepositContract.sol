@@ -4,6 +4,7 @@
 
 pragma solidity 0.4.24;
 
+import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
   * @title Deposit contract interface
@@ -25,4 +26,6 @@ interface IDepositContract {
         uint256 stake_amount
     )
         external;
+
+    function stake_token() public view returns (IERC20);
 }
