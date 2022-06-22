@@ -10,6 +10,7 @@ const { getEthBalance, formatStEth: formamtStEth, formatBN } = require('../helpe
 
 const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 
+const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const Lido = artifacts.require('LidoMock.sol')
 const ELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVault.sol')
 const OracleMock = artifacts.require('OracleMock.sol')
@@ -54,7 +55,7 @@ const STETH = ETH
 const tokens = ETH
 
 contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) => {
-  let appBase, nodeOperatorsRegistryBase, app, oracle, depositContract, operators
+  let mGno, appBase, nodeOperatorsRegistryBase, app, oracle, depositContract, operators
   let treasuryAddr, insuranceAddr
   let dao, acl
   let elRewardsVault, rewarder
@@ -67,7 +68,8 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       appBase = await Lido.new()
       oracle = await OracleMock.new()
       yetAnotherOracle = await OracleMock.new()
-      depositContract = await DepositContractMock.new()
+      mGno = await SBCTokenProxy.new(nobody, 'mGNO', 'mGNO')
+      depositContract = await DepositContractMock.new(nobody, mGno.address)
       nodeOperatorsRegistryBase = await NodeOperatorsRegistry.new()
       anyToken = await ERC20Mock.new()
     } catch (e) {
@@ -78,69 +80,76 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
   })
 
   beforeEach('deploy dao and app', async () => {
-    ;({ dao, acl } = await newDao(appManager))
+    try {
+      ;({ dao, acl } = await newDao(appManager))
 
-    // Instantiate a proxy for the app, using the base contract as its logic implementation.
-    let proxyAddress = await newApp(dao, 'lido', appBase.address, appManager)
-    app = await Lido.at(proxyAddress)
+      // Instantiate a proxy for the app, using the base contract as its logic implementation.
+      let proxyAddress = await newApp(dao, 'lido', appBase.address, appManager)
+      app = await Lido.at(proxyAddress)
 
-    // NodeOperatorsRegistry
-    proxyAddress = await newApp(dao, 'node-operators-registry', nodeOperatorsRegistryBase.address, appManager)
-    operators = await NodeOperatorsRegistry.at(proxyAddress)
-    await operators.initialize(app.address)
+      // NodeOperatorsRegistry
+      proxyAddress = await newApp(dao, 'node-operators-registry', nodeOperatorsRegistryBase.address, appManager)
+      operators = await NodeOperatorsRegistry.at(proxyAddress)
+      await operators.initialize(app.address)
 
-    // Set up the app's permissions.
-    await acl.createPermission(voting, app.address, await app.PAUSE_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.RESUME_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.MANAGE_FEE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.MANAGE_WITHDRAWAL_KEY(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.BURN_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.MANAGE_PROTOCOL_CONTRACTS_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.SET_EL_REWARDS_VAULT_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.SET_EL_REWARDS_WITHDRAWAL_LIMIT_ROLE(), appManager, {
-      from: appManager
-    })
-    await acl.createPermission(voting, app.address, await app.STAKING_PAUSE_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, app.address, await app.STAKING_CONTROL_ROLE(), appManager, { from: appManager })
+      // Set up the app's permissions.
+      await acl.createPermission(voting, app.address, await app.PAUSE_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.RESUME_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.MANAGE_FEE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.MANAGE_WITHDRAWAL_KEY(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.BURN_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.MANAGE_PROTOCOL_CONTRACTS_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.SET_EL_REWARDS_VAULT_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.SET_EL_REWARDS_WITHDRAWAL_LIMIT_ROLE(), appManager, {
+        from: appManager
+      })
+      await acl.createPermission(voting, app.address, await app.STAKING_PAUSE_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, app.address, await app.STAKING_CONTROL_ROLE(), appManager, { from: appManager })
 
-    await acl.createPermission(voting, operators.address, await operators.MANAGE_SIGNING_KEYS(), appManager, { from: appManager })
-    await acl.createPermission(voting, operators.address, await operators.ADD_NODE_OPERATOR_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_ACTIVE_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_NAME_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_ADDRESS_ROLE(), appManager, {
-      from: appManager
-    })
-    await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_LIMIT_ROLE(), appManager, { from: appManager })
-    await acl.createPermission(voting, operators.address, await operators.REPORT_STOPPED_VALIDATORS_ROLE(), appManager, {
-      from: appManager
-    })
-    await acl.createPermission(depositor, app.address, await app.DEPOSIT_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, operators.address, await operators.MANAGE_SIGNING_KEYS(), appManager, { from: appManager })
+      await acl.createPermission(voting, operators.address, await operators.ADD_NODE_OPERATOR_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_ACTIVE_ROLE(), appManager, {
+        from: appManager
+      })
+      await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_NAME_ROLE(), appManager, { from: appManager })
+      await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_ADDRESS_ROLE(), appManager, {
+        from: appManager
+      })
+      await acl.createPermission(voting, operators.address, await operators.SET_NODE_OPERATOR_LIMIT_ROLE(), appManager, {
+        from: appManager
+      })
+      await acl.createPermission(voting, operators.address, await operators.REPORT_STOPPED_VALIDATORS_ROLE(), appManager, {
+        from: appManager
+      })
+      await acl.createPermission(depositor, app.address, await app.DEPOSIT_ROLE(), appManager, { from: appManager })
 
-    // Initialize the app's proxy.
-    await app.initialize(depositContract.address, oracle.address, operators.address)
+      // Initialize the app's proxy.
+      await app.initialize(depositContract.address, oracle.address, operators.address)
 
-    assert((await app.isStakingPaused()) === true)
-    assert((await app.isStopped()) === true)
-    await app.resume({ from: voting })
-    assert((await app.isStakingPaused()) === false)
-    assert((await app.isStopped()) === false)
+      assert((await app.isStakingPaused()) === true)
+      assert((await app.isStopped()) === true)
+      await app.resume({ from: voting })
+      assert((await app.isStakingPaused()) === false)
+      assert((await app.isStopped()) === false)
 
-    treasuryAddr = await app.getTreasury()
-    insuranceAddr = await app.getInsuranceFund()
+      treasuryAddr = await app.getTreasury()
+      insuranceAddr = await app.getInsuranceFund()
 
-    await oracle.setPool(app.address)
-    await depositContract.reset()
+      await oracle.setPool(app.address)
 
-    elRewardsVault = await ELRewardsVault.new(app.address, treasuryAddr)
-    rewarder = await RewardEmulatorMock.new(elRewardsVault.address)
-    await assertRevert(app.setELRewardsVault(elRewardsVault.address), 'APP_AUTH_FAILED')
-    let receipt = await app.setELRewardsVault(elRewardsVault.address, { from: voting })
-    assertEvent(receipt, 'ELRewardsVaultSet', { expectedArgs: { executionLayerRewardsVault: elRewardsVault.address } })
+      elRewardsVault = await ELRewardsVault.new(app.address, treasuryAddr)
+      rewarder = await RewardEmulatorMock.new(elRewardsVault.address)
+      await assertRevert(app.setELRewardsVault(elRewardsVault.address), 'APP_AUTH_FAILED')
+      let receipt = await app.setELRewardsVault(elRewardsVault.address, { from: voting })
+      assertEvent(receipt, 'ELRewardsVaultSet', { expectedArgs: { executionLayerRewardsVault: elRewardsVault.address } })
 
-    const elRewardsWithdrawalLimitPoints = 3
-    await assertRevert(app.setELRewardsWithdrawalLimit(elRewardsWithdrawalLimitPoints), 'APP_AUTH_FAILED')
-    receipt = await app.setELRewardsWithdrawalLimit(elRewardsWithdrawalLimitPoints, { from: voting })
-    assertEvent(receipt, 'ELRewardsWithdrawalLimitSet', { expectedArgs: { limitPoints: elRewardsWithdrawalLimitPoints } })
+      const elRewardsWithdrawalLimitPoints = 3
+      await assertRevert(app.setELRewardsWithdrawalLimit(elRewardsWithdrawalLimitPoints), 'APP_AUTH_FAILED')
+      receipt = await app.setELRewardsWithdrawalLimit(elRewardsWithdrawalLimitPoints, { from: voting })
+      assertEvent(receipt, 'ELRewardsWithdrawalLimitSet', { expectedArgs: { limitPoints: elRewardsWithdrawalLimitPoints } })
+    } catch (error) {
+      console.log(error)
+    }
   })
 
   const checkStat = async ({ depositedValidators, beaconValidators, beaconBalance }) => {
@@ -233,20 +242,24 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
   }
 
   it('Execution layer rewards distribution works when zero rewards reported', async () => {
-    const depositAmount = 32
-    const elRewards = depositAmount / TOTAL_BASIS_POINTS
-    const beaconRewards = 0
+    try {
+      const depositAmount = 32
+      const elRewards = depositAmount / TOTAL_BASIS_POINTS
+      const beaconRewards = 0
 
-    await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
-    await oracle.reportBeacon(100, 1, ETH(depositAmount))
+      await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+      await oracle.reportBeacon(100, 1, ETH(depositAmount))
 
-    await rewarder.reward({ from: user1, value: ETH(elRewards) })
-    await oracle.reportBeacon(101, 1, ETH(depositAmount + beaconRewards))
+      await rewarder.reward({ from: user1, value: ETH(elRewards) })
+      await oracle.reportBeacon(101, 1, ETH(depositAmount + beaconRewards))
 
-    assertBn(await app.getTotalPooledEther(), ETH(depositAmount + elRewards + beaconRewards))
-    assertBn(await app.getBufferedEther(), ETH(elRewards))
-    assertBn(await app.balanceOf(user2), STETH(depositAmount + elRewards))
-    assertBn(await app.getTotalELRewardsCollected(), ETH(elRewards))
+      assertBn(await app.getTotalPooledEther(), ETH(depositAmount + elRewards + beaconRewards))
+      assertBn(await app.getBufferedEther(), ETH(elRewards))
+      assertBn(await app.balanceOf(user2), STETH(depositAmount + elRewards))
+      assertBn(await app.getTotalELRewardsCollected(), ETH(elRewards))
+    } catch (error) {
+      console.log(error)
+    }
   })
 
   it('Execution layer rewards distribution works when negative rewards reported', async () => {

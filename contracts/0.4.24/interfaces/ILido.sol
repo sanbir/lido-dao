@@ -225,10 +225,10 @@ interface ILido {
     // User functions
 
     /**
-      * @notice Adds eth to the pool
+      * @notice Adds mGNO to the pool
       * @return StETH Amount of StETH generated
       */
-    function submit(address _referral) external payable returns (uint256 StETH);
+    function submit(uint256 _amount, address _referral) external returns (uint256 StETH);
 
     // Records a deposit made by a user
     event Submitted(address indexed sender, uint256 amount, address referral);
