@@ -73,6 +73,7 @@ contract Lido is ILido, StETH, AragonApp {
     uint256 constant public WITHDRAWAL_CREDENTIALS_LENGTH = 32;
     uint256 constant public SIGNATURE_LENGTH = 96;
 
+    /// @dev 32 mGNO
     uint256 constant public DEPOSIT_SIZE = 32 ether;
 
     uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -269,25 +270,14 @@ contract Lido is ILido, StETH, AragonApp {
         prevStakeBlockNumber = stakeLimitData.prevStakeBlockNumber;
     }
 
-    /**
-    * @notice Send funds to the pool
-    * @dev Users are able to submit their funds by transacting to the fallback function.
-    * Unlike vanilla Eth2.0 Deposit contract, accepting only 32-Ether transactions, Lido
-    * accepts payments of any size. Submitted Ethers are stored in Buffer until someone calls
-    * depositBufferedEther() and pushes them to the ETH2 Deposit contract.
-    */
-    function() external payable {
-        // protection against accidental submissions by calling non-existent function
-        require(msg.data.length == 0, "NON_EMPTY_DATA");
-        _submit(0);
-    }
+    // Should not accept xDAI, so, no fallback
 
     /**
     * @notice Send funds to the pool with optional _referral parameter
     * @dev This function is alternative way to submit funds. Supports optional referral address.
     * @return Amount of StETH shares generated
     */
-    function submit(address _referral) external payable returns (uint256) {
+    function submit(address _referral) external returns (uint256) {
         return _submit(_referral);
     }
 
@@ -789,8 +779,8 @@ contract Lido is ILido, StETH, AragonApp {
 
         uint256 targetBalance = address(this).balance.sub(value);
 
-        getDepositContract().deposit.value(value)(
-            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot);
+        getDepositContract().deposit(
+            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot, value);
         require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 

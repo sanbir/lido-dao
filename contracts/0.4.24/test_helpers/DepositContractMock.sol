@@ -26,12 +26,12 @@ contract DepositContractMock is IDepositContract {
         bytes /* 48 */ pubkey,
         bytes /* 32 */ withdrawal_credentials,
         bytes /* 96 */ signature,
-        bytes32 deposit_data_root
+        bytes32 deposit_data_root,
+        uint256 stake_amount
     )
         external
-        payable
     {
-        calls.push(Call(pubkey, withdrawal_credentials, signature, deposit_data_root, msg.value));
+        calls.push(Call(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount));
     }
 
     function totalCalls() external view returns (uint256) {

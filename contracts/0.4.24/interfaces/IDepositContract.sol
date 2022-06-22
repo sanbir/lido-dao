@@ -15,12 +15,14 @@ interface IDepositContract {
       * @param withdrawal_credentials Credentials that allows to withdraw funds
       * @param signature Signature of the request
       * @param deposit_data_root The deposits Merkle tree node, used as a checksum
+      * @param stake_amount Instead of payable since ERC-20 is staked
       */
     function deposit(
         bytes /* 48 */ pubkey,
         bytes /* 32 */ withdrawal_credentials,
         bytes /* 96 */ signature,
-        bytes32 deposit_data_root
+        bytes32 deposit_data_root,
+        uint256 stake_amount
     )
-        external payable;
+        external;
 }

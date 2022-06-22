@@ -6,6 +6,7 @@ const { BN } = require('bn.js')
 const StETH = artifacts.require('StETH.sol') // we can just import due to StETH imported in test_helpers/Imports.sol
 const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 
+const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const Lido = artifacts.require('LidoMock.sol')
 const OracleMock = artifacts.require('OracleMock.sol')
 const DepositContract = artifacts.require('DepositContract')
@@ -49,7 +50,7 @@ const ETH = (value) => web3.utils.toWei(value + '', 'ether')
 const tokens = ETH
 
 contract('Lido with official deposit contract', ([appManager, voting, user1, user2, user3, nobody, depositor]) => {
-  let appBase, stEthBase, nodeOperatorsRegistryBase, app, token, oracle, depositContract, operators
+  let mGno, appBase, stEthBase, nodeOperatorsRegistryBase, app, token, oracle, depositContract, operators
   let treasuryAddr, insuranceAddr
 
   before('deploy base app', async () => {
@@ -61,7 +62,8 @@ contract('Lido with official deposit contract', ([appManager, voting, user1, use
   })
 
   beforeEach('deploy dao and app', async () => {
-    depositContract = await DepositContract.new()
+    mGno = await SBCTokenProxy.new(nobody, 'mGNO', 'mGNO')
+    depositContract = await DepositContract.new(nobody, mGno.address)
     const { dao, acl } = await newDao(appManager)
 
     // Instantiate a proxy for the app, using the base contract as its logic implementation.
