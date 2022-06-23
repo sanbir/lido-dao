@@ -270,7 +270,15 @@ contract Lido is ILido, StETH, AragonApp {
         prevStakeBlockNumber = stakeLimitData.prevStakeBlockNumber;
     }
 
-    // Should not accept xDAI, so, no fallback
+    /**
+    * @dev Fallback should not accept xDAI.
+    */
+    function() external payable {
+        // protection against accidental submissions by calling non-existent function
+        require(msg.data.length == 0, "NON_EMPTY_DATA");
+        // protection against sending native currency (xDAI)
+        require(msg.value == 0, "NO_NATIVE_CURRENCY");
+    }
 
     /**
     * @notice Send funds to the pool with optional _referral parameter
@@ -610,6 +618,13 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
+    * @dev Gets mGNO balance of this contract
+    */
+    function getMgnoBalance() internal view returns (uint256) {
+        return getMGNO().balanceOf(address(this));
+    }
+
+    /**
     * @notice Gets authorized oracle address
     * @return address of oracle contract
     */
@@ -794,11 +809,11 @@ contract Lido is ILido, StETH, AragonApp {
             )
         );
 
-        uint256 targetBalance = address(this).balance.sub(value);
+        uint256 targetBalance = getMgnoBalance().sub(value);
 
         getDepositContract().deposit(
             _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot, value);
-        require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
+        require(getMgnoBalance() == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 
     /**
@@ -905,20 +920,20 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @dev Gets the amount of Ether temporary buffered on this contract balance
+    * @dev Gets the amount of mGNO temporary buffered on this contract balance
     */
     function _getBufferedEther() internal view returns (uint256) {
         uint256 buffered = BUFFERED_ETHER_POSITION.getStorageUint256();
-        assert(address(this).balance >= buffered);
+        assert(getMgnoBalance() >= buffered);
 
         return buffered;
     }
 
     /**
-    * @dev Gets unaccounted (excess) Ether on this contract balance
+    * @dev Gets unaccounted (excess) mGNO on this contract balance
     */
     function _getUnaccountedEther() internal view returns (uint256) {
-        return address(this).balance.sub(_getBufferedEther());
+        return getMgnoBalance().sub(_getBufferedEther());
     }
 
     /**
@@ -935,7 +950,7 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @dev Gets the total amount of Ether controlled by the system
+    * @dev Gets the total amount of mGNO controlled by the system
     * @return total balance in wei
     */
     function _getTotalPooledEther() internal view returns (uint256) {

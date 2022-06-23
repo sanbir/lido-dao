@@ -237,9 +237,19 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       { from: voting }
     )
 
-    await web3.eth.sendTransaction({ to: app.address, from: userAddress, value: initialDepositAmount })
-    await app.methods['depositBufferedEther()']({ from: depositor })
+    try {
+      const SOME_AMOUNT_OF_MGNO = 42
+      await app.submit(SOME_AMOUNT_OF_MGNO, ZERO_ADDRESS, { from: userAddress })
+      await app.methods['depositBufferedEther()']({ from: depositor })
+    } catch (err) {
+      console.log('err depositBufferedEther')
+      console.log(err)
+    }
   }
+
+  it('Native currency user deposit is expected to fail', async () => {
+    await assertRevert(web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(1) }), `NO_NATIVE_CURRENCY`)
+  })
 
   it('Execution layer rewards distribution works when zero rewards reported', async () => {
     try {
@@ -247,7 +257,12 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       const elRewards = depositAmount / TOTAL_BASIS_POINTS
       const beaconRewards = 0
 
-      await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+      try {
+        await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+      } catch (error) {
+        console.log('error setupNodeOperatorsForELRewardsVaultTests')
+        console.log(error)
+      }
       await oracle.reportBeacon(100, 1, ETH(depositAmount))
 
       await rewarder.reward({ from: user1, value: ETH(elRewards) })
