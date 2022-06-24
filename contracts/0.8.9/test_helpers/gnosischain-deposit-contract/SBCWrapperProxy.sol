@@ -13,7 +13,7 @@ contract SBCWrapperProxy is EIP1967Proxy {
     constructor(
         address _admin,
         SBCToken _token,
-        DepositContract _depositContract
+        SBCDepositContract _depositContract
     ) {
         _setAdmin(_admin);
         _setImplementation(address(new SBCWrapper(_token, _depositContract)));

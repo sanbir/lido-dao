@@ -9,7 +9,7 @@ const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const Lido = artifacts.require('LidoMock.sol')
 const OracleMock = artifacts.require('OracleMock.sol')
-const DepositContract = artifacts.require('DepositContract')
+const DepositContractMock = artifacts.require('DepositContractMock')
 
 const ADDRESS_1 = '0x0000000000000000000000000000000000000001'
 const ADDRESS_2 = '0x0000000000000000000000000000000000000002'
@@ -50,7 +50,7 @@ const ETH = (value) => web3.utils.toWei(value + '', 'ether')
 const tokens = ETH
 
 contract('Lido with official deposit contract', ([appManager, voting, user1, user2, user3, nobody, depositor]) => {
-  let mGno, appBase, stEthBase, nodeOperatorsRegistryBase, app, token, oracle, depositContract, operators
+  let appBase, stEthBase, nodeOperatorsRegistryBase, app, token, oracle, depositContract, operators
   let treasuryAddr, insuranceAddr
 
   before('deploy base app', async () => {
@@ -62,8 +62,7 @@ contract('Lido with official deposit contract', ([appManager, voting, user1, use
   })
 
   beforeEach('deploy dao and app', async () => {
-    mGno = await SBCTokenProxy.new(nobody, 'mGNO', 'mGNO')
-    depositContract = await DepositContract.new(nobody, mGno.address)
+    depositContract = await DepositContractMock.new()
     const { dao, acl } = await newDao(appManager)
 
     // Instantiate a proxy for the app, using the base contract as its logic implementation.

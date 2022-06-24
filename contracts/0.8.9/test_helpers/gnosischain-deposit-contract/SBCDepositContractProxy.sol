@@ -9,7 +9,7 @@ import "./SBCDepositContract.sol";
  * @title SBCDepositContractProxy
  * @dev Upgradeable version of the underlying SBCDepositContract.
  */
-contract DepositContract is EIP1967Proxy {
+contract SBCDepositContractProxy is EIP1967Proxy {
     bool private paused;
 
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;

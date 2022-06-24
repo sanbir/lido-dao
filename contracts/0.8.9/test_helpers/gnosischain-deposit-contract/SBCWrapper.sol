@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-v4.4/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-v4.4/security/ReentrancyGuard.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./SBCToken.sol";
-import "./DepositContract.sol";
+import "./SBCDepositContract.sol";
 
 /**
  * @title SBCWrapper
@@ -27,14 +27,14 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     mapping(address => uint256) public tokenRate;
 
     SBCToken public immutable sbcToken;
-    DepositContract public immutable sbcDepositContract;
+    SBCDepositContract public immutable sbcDepositContract;
 
     event Swap(address indexed token, address indexed user, uint256 amount, uint256 received);
     event SwapRateUpdated(address indexed token, uint256 rate);
     event TokenSwapEnabled(address indexed token);
     event TokenSwapPaused(address indexed token);
 
-    constructor(SBCToken _sbcToken, DepositContract _depositContract) {
+    constructor(SBCToken _sbcToken, SBCDepositContract _depositContract) {
         sbcToken = _sbcToken;
         sbcDepositContract = _depositContract;
     }

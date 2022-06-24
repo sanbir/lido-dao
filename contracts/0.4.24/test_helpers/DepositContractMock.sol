@@ -49,4 +49,8 @@ contract DepositContractMock is IDepositContract {
     function set_deposit_root(bytes32 _newRoot) external {
         depositRoot = _newRoot;
     }
+
+    function stake_token() public view returns (IERC20) {
+
+    }
 }
