@@ -27,5 +27,5 @@ interface IDepositContract {
     )
         external;
 
-    function stake_token() public view returns (IERC20);
+    function stake_token() public view returns (address);
 }

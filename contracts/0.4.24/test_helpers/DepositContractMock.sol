@@ -21,6 +21,7 @@ contract DepositContractMock is IDepositContract {
 
     Call[] public calls;
     bytes32 internal depositRoot;
+    address internal stakeToken;
 
     function deposit(
         bytes /* 48 */ pubkey,
@@ -50,7 +51,11 @@ contract DepositContractMock is IDepositContract {
         depositRoot = _newRoot;
     }
 
-    function stake_token() public view returns (IERC20) {
+    function set_stake_token(address _stake_token) external {
+        stakeToken = _stake_token;
+    }
 
+    function stake_token() public view returns (address) {
+        return stakeToken;
     }
 }

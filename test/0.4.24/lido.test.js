@@ -75,7 +75,11 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       await mGno.mint(user1, tokens(UNLIMITED), { from: nobody })
       await mGno.mint(user2, tokens(UNLIMITED), { from: nobody })
       await mGno.mint(user3, tokens(UNLIMITED), { from: nobody })
+      assertBn(await mGno.balanceOf(user1), tokens(UNLIMITED), 'user1 mGno balance check')
+      assertBn(await mGno.balanceOf(user2), tokens(UNLIMITED), 'user2 mGno balance check')
+      assertBn(await mGno.balanceOf(user3), tokens(UNLIMITED), 'user3 mGno balance check')
       depositContract = await DepositContractMock.new()
+      await depositContract.set_stake_token(mGnoProxy.address)
       nodeOperatorsRegistryBase = await NodeOperatorsRegistry.new()
       anyToken = await ERC20Mock.new()
     } catch (e) {
@@ -244,8 +248,12 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     )
 
     try {
-      const SOME_AMOUNT_OF_MGNO = 42
-      await app.submit(SOME_AMOUNT_OF_MGNO, ZERO_ADDRESS, { from: userAddress })
+      const receipt = await mGno.increaseAllowance(app.address, initialDepositAmount, { from: userAddress })
+      assertEvent(receipt, 'Approval', { expectedArgs: { owner: userAddress, spender: app.address, value: initialDepositAmount } })
+      assertBn(await mGno.allowance(userAddress, app.address), initialDepositAmount)
+
+      await app.submit(initialDepositAmount, ZERO_ADDRESS, { from: userAddress })
+
       await app.methods['depositBufferedEther()']({ from: depositor })
     } catch (err) {
       console.log('err depositBufferedEther')
@@ -264,7 +272,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       const beaconRewards = 0
 
       try {
-        await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+        await setupNodeOperatorsForELRewardsVaultTests(user2, tokens(depositAmount))
       } catch (error) {
         console.log('error setupNodeOperatorsForELRewardsVaultTests')
         console.log(error)

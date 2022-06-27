@@ -285,16 +285,14 @@ contract Lido is ILido, StETH, AragonApp {
     * @return Amount of StETH shares generated
     */
     function submit(uint256 _amount, address _referral) external returns (uint256) {
-        uint256 sharesAmount;
+        getMGNO().transferFrom(msg.sender, address(this), _amount);
 
+        uint256 sharesAmount;
         if (_referral != address(0)) {
             sharesAmount = _submit(_amount, _referral);
         } else {
             sharesAmount = _submit(_amount, msg.sender);
         }
-
-        getMGNO().transferFrom(msg.sender, address(this), _amount);
-
         return sharesAmount;
     }
 
@@ -614,7 +612,7 @@ contract Lido is ILido, StETH, AragonApp {
     * @notice Gets mGNO contract handle
     */
     function getMGNO() public view returns (IERC20) {
-        return getDepositContract().stake_token();
+        return IERC20(getDepositContract().stake_token());
     }
 
     /**
