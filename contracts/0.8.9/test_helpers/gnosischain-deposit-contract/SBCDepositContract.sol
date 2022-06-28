@@ -28,6 +28,35 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
     /// mGNO
     IERC20 public immutable stake_token;
 
+    /// Mock data
+    struct Call {
+        bytes pubkey;
+        bytes withdrawal_credentials;
+        bytes signature;
+        bytes32 deposit_data_root;
+        uint256 value;
+    }
+
+    Call[] public calls;
+    bytes32 internal depositRoot;
+
+    function totalCalls() external view returns (uint256) {
+        return calls.length;
+    }
+
+    function reset() external {
+        delete calls;
+    }
+
+//    function get_deposit_root() external view returns (bytes32) {
+//        return depositRoot;
+//    }
+
+    function set_deposit_root(bytes32 _newRoot) external {
+        depositRoot = _newRoot;
+    }
+    /// Mock data
+
     constructor(address _token) {
         stake_token = IERC20(_token);
     }
@@ -57,6 +86,8 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
         bytes32 deposit_data_root,
         uint256 stake_amount
     ) external override whenNotPaused {
+        calls.push(Call(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount)); // mock
+
         stake_token.transferFrom(msg.sender, address(this), stake_amount);
         _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount);
     }

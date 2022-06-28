@@ -13,6 +13,7 @@ import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interfaces/ILido.sol";
 import "./interfaces/INodeOperatorsRegistry.sol";
 import "./interfaces/IDepositContract.sol";
+import "./interfaces/IMGno.sol";
 import "./interfaces/ILidoExecutionLayerRewardsVault.sol";
 
 import "./StETH.sol";
@@ -144,8 +145,7 @@ contract Lido is ILido, StETH, AragonApp {
     /**
     * @notice Stops accepting new mGNO to the protocol
     *
-    * @dev While accepting new mGNO is stopped, calls to the `submit` function,
-    * as well as to the default payable function, will revert.
+    * @dev While accepting new mGNO is stopped, calls to the `submit` function will revert.
     *
     * Emits `StakingPaused` event.
     */
@@ -297,8 +297,8 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @notice A payable function for execution layer rewards. Can be called only by ExecutionLayerRewardsVault contract
-    * @dev We need a dedicated function because funds received by the default payable function
+    * @notice A function for execution layer rewards. Can be called only by ExecutionLayerRewardsVault contract
+    * @dev We need a dedicated function because funds received by the submit function
     * are treated as a user deposit
     */
     function receiveELRewards(uint256 _amount) external {
@@ -617,8 +617,8 @@ contract Lido is ILido, StETH, AragonApp {
     /**
     * @notice Gets mGNO contract handle
     */
-    function getMGNO() public view returns (IERC20) {
-        return IERC20(getDepositContract().stake_token());
+    function getMGNO() public view returns (IMGno) {
+        return IMGno(getDepositContract().stake_token());
     }
 
     /**
@@ -626,6 +626,13 @@ contract Lido is ILido, StETH, AragonApp {
     */
     function getMgnoBalance() internal view returns (uint256) {
         return getMGNO().balanceOf(address(this));
+    }
+
+    /**
+    * @dev Gets mGNO balance of this contract
+    */
+    function mGnoIncreaseAllowance(address spender, uint256 addedValue) internal {
+        getMGNO().increaseAllowance(spender, addedValue);
     }
 
     /**
@@ -815,8 +822,11 @@ contract Lido is ILido, StETH, AragonApp {
 
         uint256 targetBalance = getMgnoBalance().sub(value);
 
+        IDepositContract depositContractAddress = getDepositContract();
+        mGnoIncreaseAllowance(depositContractAddress, value);
         getDepositContract().deposit(
             _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot, value);
+
         require(getMgnoBalance() == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 
