@@ -173,11 +173,11 @@ interface ILido {
     event FeeDistributionSet(uint16 treasuryFeeBasisPoints, uint16 insuranceFeeBasisPoints, uint16 operatorsFeeBasisPoints);
 
     /**
-      * @notice A payable function supposed to be called only by LidoExecutionLayerRewardsVault contract
-      * @dev We need a dedicated function because funds received by the default payable function
+      * @notice A function supposed to be called only by LidoExecutionLayerRewardsVault contract
+      * @dev We need a dedicated function because funds received by the submit function
       * are treated as a user deposit
       */
-    function receiveELRewards() external payable;
+    function receiveELRewards(uint256 _amount) external;
 
     // The amount of ETH withdrawn from LidoExecutionLayerRewardsVault contract to Lido contract
     event ELRewardsReceived(uint256 amount);

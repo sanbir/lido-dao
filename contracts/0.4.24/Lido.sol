@@ -142,9 +142,9 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @notice Stops accepting new Ether to the protocol
+    * @notice Stops accepting new mGNO to the protocol
     *
-    * @dev While accepting new Ether is stopped, calls to the `submit` function,
+    * @dev While accepting new mGNO is stopped, calls to the `submit` function,
     * as well as to the default payable function, will revert.
     *
     * Emits `StakingPaused` event.
@@ -285,7 +285,7 @@ contract Lido is ILido, StETH, AragonApp {
     * @return Amount of StETH shares generated
     */
     function submit(uint256 _amount, address _referral) external returns (uint256) {
-        getMGNO().transferFrom(msg.sender, address(this), _amount);
+        _receiveMgno(_amount);
 
         uint256 sharesAmount;
         if (_referral != address(0)) {
@@ -301,13 +301,19 @@ contract Lido is ILido, StETH, AragonApp {
     * @dev We need a dedicated function because funds received by the default payable function
     * are treated as a user deposit
     */
-    function receiveELRewards() external payable {
+    function receiveELRewards(uint256 _amount) external {
         require(msg.sender == EL_REWARDS_VAULT_POSITION.getStorageAddress());
 
-        TOTAL_EL_REWARDS_COLLECTED_POSITION.setStorageUint256(
-            TOTAL_EL_REWARDS_COLLECTED_POSITION.getStorageUint256().add(msg.value));
+        _receiveMgno(_amount);
 
-        emit ELRewardsReceived(msg.value);
+        TOTAL_EL_REWARDS_COLLECTED_POSITION.setStorageUint256(
+            TOTAL_EL_REWARDS_COLLECTED_POSITION.getStorageUint256().add(_amount));
+
+        emit ELRewardsReceived(_amount);
+    }
+
+    function _receiveMgno(uint256 _amount) internal {
+        getMGNO().transferFrom(msg.sender, address(this), _amount);
     }
 
     /**
@@ -733,7 +739,7 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @dev Deposits buffered eth to the DepositContract and assigns chunked deposits to node operators
+    * @dev Deposits buffered mGNO to the DepositContract and assigns chunked deposits to node operators
     */
     function _depositBufferedEther(uint256 _maxDeposits) internal whenNotStopped {
         uint256 buffered = _getBufferedEther();
