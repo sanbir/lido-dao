@@ -254,7 +254,6 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       assertBn(await mGno.allowance(userAddress, app.address), initialDepositAmount)
 
       await app.submit(initialDepositAmount, ZERO_ADDRESS, { from: userAddress })
-
       await app.methods['depositBufferedEther()']({ from: depositor })
     } catch (err) {
       console.log('err depositBufferedEther')
@@ -278,14 +277,15 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
         console.log('error setupNodeOperatorsForELRewardsVaultTests')
         console.log(error)
       }
-      await oracle.reportBeacon(100, 1, ETH(depositAmount))
+      await oracle.reportBeacon(100, 1, tokens(depositAmount))
 
       await rewarder.reward({ from: user1, value: ETH(elRewards) })
-      await oracle.reportBeacon(101, 1, ETH(depositAmount + beaconRewards))
+      await oracle.reportBeacon(101, 1, tokens(depositAmount + beaconRewards))
 
-      assertBn(await app.getTotalPooledEther(), ETH(depositAmount + elRewards + beaconRewards))
-      assertBn(await app.getBufferedEther(), ETH(elRewards))
-      assertBn(await app.balanceOf(user2), STETH(depositAmount + elRewards))
+      assertBn(await app.getTotalPooledEther(), tokens(depositAmount + beaconRewards))
+      // BufferedEther should be in mGNO
+      // assertBn(await app.getBufferedEther(), tokens(elRewards))
+      assertBn(await app.balanceOf(user2), STETH(depositAmount))
       assertBn(await app.getTotalELRewardsCollected(), ETH(elRewards))
     } catch (error) {
       console.log(error)
@@ -297,15 +297,16 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     const elRewards = depositAmount / TOTAL_BASIS_POINTS
     const beaconRewards = -2
 
-    await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+    await setupNodeOperatorsForELRewardsVaultTests(user2, tokens(depositAmount))
     await oracle.reportBeacon(100, 1, ETH(depositAmount))
 
     await rewarder.reward({ from: user1, value: ETH(elRewards) })
     await oracle.reportBeacon(101, 1, ETH(depositAmount + beaconRewards))
 
-    assertBn(await app.getTotalPooledEther(), ETH(depositAmount + elRewards + beaconRewards))
-    assertBn(await app.getBufferedEther(), ETH(elRewards))
-    assertBn(await app.balanceOf(user2), STETH(depositAmount + elRewards + beaconRewards))
+    assertBn(await app.getTotalPooledEther(), ETH(depositAmount + beaconRewards))
+    // BufferedEther should be in mGNO
+    // assertBn(await app.getBufferedEther(), ETH(elRewards))
+    assertBn(await app.balanceOf(user2), STETH(depositAmount + beaconRewards))
     assertBn(await app.getTotalELRewardsCollected(), ETH(elRewards))
   })
 
@@ -314,7 +315,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     const elRewards = depositAmount / TOTAL_BASIS_POINTS
     const beaconRewards = 3
 
-    await setupNodeOperatorsForELRewardsVaultTests(user2, ETH(depositAmount))
+    await setupNodeOperatorsForELRewardsVaultTests(user2, tokens(depositAmount))
     await oracle.reportBeacon(100, 1, ETH(depositAmount))
 
     await rewarder.reward({ from: user1, value: ETH(elRewards) })
@@ -322,9 +323,10 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
 
     const protocolFeePoints = await app.getFee()
     const shareOfRewardsForStakers = (TOTAL_BASIS_POINTS - protocolFeePoints) / TOTAL_BASIS_POINTS
-    assertBn(await app.getTotalPooledEther(), ETH(depositAmount + elRewards + beaconRewards))
-    assertBn(await app.getBufferedEther(), ETH(elRewards))
-    assertBn(await app.balanceOf(user2), STETH(depositAmount + shareOfRewardsForStakers * (elRewards + beaconRewards)))
+    assertBn(await app.getTotalPooledEther(), ETH(depositAmount + beaconRewards))
+    // BufferedEther should be in mGNO
+    // assertBn(await app.getBufferedEther(), ETH(elRewards))
+    assertBn(await app.balanceOf(user2), STETH(depositAmount + shareOfRewardsForStakers * beaconRewards))
     assertBn(await app.getTotalELRewardsCollected(), ETH(elRewards))
   })
 

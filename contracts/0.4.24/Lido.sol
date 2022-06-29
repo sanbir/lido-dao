@@ -297,19 +297,17 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @notice A function for execution layer rewards. Can be called only by ExecutionLayerRewardsVault contract
-    * @dev We need a dedicated function because funds received by the submit function
+    * @notice A payable function for execution layer rewards. Can be called only by ExecutionLayerRewardsVault contract
+    * @dev We need a dedicated function because funds received by the default payable function
     * are treated as a user deposit
     */
-    function receiveELRewards(uint256 _amount) external {
+    function receiveELRewards() external payable {
         require(msg.sender == EL_REWARDS_VAULT_POSITION.getStorageAddress());
 
-        _receiveMgno(_amount);
-
         TOTAL_EL_REWARDS_COLLECTED_POSITION.setStorageUint256(
-            TOTAL_EL_REWARDS_COLLECTED_POSITION.getStorageUint256().add(_amount));
+            TOTAL_EL_REWARDS_COLLECTED_POSITION.getStorageUint256().add(msg.value));
 
-        emit ELRewardsReceived(_amount);
+        emit ELRewardsReceived(msg.value);
     }
 
     function _receiveMgno(uint256 _amount) internal {
@@ -506,13 +504,10 @@ contract Lido is ILido, StETH, AragonApp {
         address executionLayerRewardsVaultAddress = getELRewardsVault();
 
         if (executionLayerRewardsVaultAddress != address(0)) {
+            // withdraw all xDAI
             executionLayerRewards = ILidoExecutionLayerRewardsVault(executionLayerRewardsVaultAddress).withdrawRewards(
-                (_getTotalPooledEther() * EL_REWARDS_WITHDRAWAL_LIMIT_POSITION.getStorageUint256()) / TOTAL_BASIS_POINTS
+                uint256(-1)
             );
-
-            if (executionLayerRewards != 0) {
-                BUFFERED_ETHER_POSITION.setStorageUint256(_getBufferedEther().add(executionLayerRewards));
-            }
         }
 
         // Don’t mint/distribute any protocol fee on the non-profitable Lido oracle report
@@ -520,7 +515,7 @@ contract Lido is ILido, StETH, AragonApp {
         // See ADR #3 for details: https://research.lido.fi/t/rewards-distribution-after-the-merge-architecture-decision-record/1535
         if (_beaconBalance > rewardBase) {
             uint256 rewards = _beaconBalance.sub(rewardBase);
-            distributeFee(rewards.add(executionLayerRewards));
+            distributeFee(rewards);
         }
     }
 
@@ -953,7 +948,7 @@ contract Lido is ILido, StETH, AragonApp {
     /**
     * @dev Calculates and returns the total base balance (multiple of 32) of validators in transient state,
     *      i.e. submitted to the official Deposit contract but not yet visible in the beacon state.
-    * @return transient balance in wei (1e-18 Ether)
+    * @return transient balance in wei (1e-18 mGNO)
     */
     function _getTransientBalance() internal view returns (uint256) {
         uint256 depositedValidators = DEPOSITED_VALIDATORS_POSITION.getStorageUint256();
