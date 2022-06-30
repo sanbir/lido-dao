@@ -286,14 +286,7 @@ contract Lido is ILido, StETH, AragonApp {
     */
     function submit(uint256 _amount, address _referral) external returns (uint256) {
         _receiveMgno(_amount);
-
-        uint256 sharesAmount;
-        if (_referral != address(0)) {
-            sharesAmount = _submit(_amount, _referral);
-        } else {
-            sharesAmount = _submit(_amount, msg.sender);
-        }
-        return sharesAmount;
+        return _submit(_amount, _referral);
     }
 
     /**
@@ -465,6 +458,23 @@ contract Lido is ILido, StETH, AragonApp {
 
         _setBPValue(EL_REWARDS_WITHDRAWAL_LIMIT_POSITION, _limitPoints);
         emit ELRewardsWithdrawalLimitSet(_limitPoints);
+    }
+
+    function uint2str(uint i) internal pure returns (string){
+        if (i == 0) return "0";
+        uint j = i;
+        uint length;
+        while (j != 0){
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint k = length - 1;
+        while (i != 0){
+            bstr[k--] = byte(48 + i % 10);
+            i /= 10;
+        }
+        return string(bstr);
     }
 
     /**
