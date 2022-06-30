@@ -136,6 +136,9 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
 
       // Initialize the app's proxy.
       await app.initialize(depositContract.address, oracle.address, operators.address)
+      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user1 })
+      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user2 })
+      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user3 })
 
       assert((await app.isStakingPaused()) === true)
       assert((await app.isStopped()) === true)
@@ -147,6 +150,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       insuranceAddr = await app.getInsuranceFund()
 
       await oracle.setPool(app.address)
+      await depositContract.reset()
 
       elRewardsVault = await ELRewardsVault.new(app.address, treasuryAddr)
       rewarder = await RewardEmulatorMock.new(elRewardsVault.address)
@@ -249,10 +253,6 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     )
 
     try {
-      const receipt = await mGno.increaseAllowance(app.address, initialDepositAmount, { from: userAddress })
-      assertEvent(receipt, 'Approval', { expectedArgs: { owner: userAddress, spender: app.address, value: initialDepositAmount } })
-      assertBn(await mGno.allowance(userAddress, app.address), initialDepositAmount)
-
       await app.submit(initialDepositAmount, ZERO_ADDRESS, { from: userAddress })
       await app.methods['depositBufferedEther()']({ from: depositor })
     } catch (err) {
@@ -460,32 +460,31 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
 
       // zero deposits revert
       await assertRevert(app.submit(0, ZERO_ADDRESS, { from: user1 }), 'ZERO_DEPOSIT')
-      await assertRevert(web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(0) }), 'ZERO_DEPOSIT')
 
       // +1 ETH
-      await web3.eth.sendTransaction({ to: app.address, from: user1, value: ETH(1) })
+      await app.submit(tokens(1), ZERO_ADDRESS, { from: user1 })
       await app.methods['depositBufferedEther()']({ from: depositor })
-      await checkStat({ depositedValidators: 0, beaconValidators: 0, beaconBalance: ETH(0) })
+      await checkStat({ depositedValidators: 0, beaconValidators: 0, beaconBalance: tokens(0) })
       assertBn(await depositContract.totalCalls(), 0)
-      assertBn(await app.getTotalPooledEther(), ETH(1))
-      assertBn(await app.getBufferedEther(), ETH(1))
+      assertBn(await app.getTotalPooledEther(), tokens(1))
+      assertBn(await app.getBufferedEther(), tokens(1))
       assertBn(await app.balanceOf(user1), tokens(1))
       assertBn(await app.totalSupply(), tokens(1))
 
       // +2 ETH
       const receipt = await app.submit(tokens(2), ZERO_ADDRESS, { from: user2 }) // another form of a deposit call
 
-      assertEvent(receipt, 'Transfer', { expectedArgs: { from: ZERO_ADDRESS, to: user2, value: ETH(2) } })
+      assertEvent(receipt, 'Transfer', { index: 1, expectedArgs: { from: ZERO_ADDRESS, to: user2, value: tokens(2) } })
 
       await checkStat({ depositedValidators: 0, beaconValidators: 0, beaconBalance: ETH(0) })
       assertBn(await depositContract.totalCalls(), 0)
-      assertBn(await app.getTotalPooledEther(), ETH(3))
-      assertBn(await app.getBufferedEther(), ETH(3))
+      assertBn(await app.getTotalPooledEther(), tokens(3))
+      assertBn(await app.getBufferedEther(), tokens(3))
       assertBn(await app.balanceOf(user2), tokens(2))
       assertBn(await app.totalSupply(), tokens(3))
 
       // +30 ETH
-      await web3.eth.sendTransaction({ to: app.address, from: user3, value: ETH(30) })
+      await app.submit(tokens(30), ZERO_ADDRESS, { from: user3 })
       // can not deposit with unset withdrawalCredentials
       await assertRevert(app.methods['depositBufferedEther()']({ from: depositor }), 'EMPTY_WITHDRAWAL_CREDENTIALS')
 
@@ -504,8 +503,8 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       await app.methods['depositBufferedEther()']({ from: depositor })
 
       await checkStat({ depositedValidators: 1, beaconValidators: 0, beaconBalance: ETH(0) })
-      assertBn(await app.getTotalPooledEther(), ETH(33))
-      assertBn(await app.getBufferedEther(), ETH(1))
+      assertBn(await app.getTotalPooledEther(), tokens(33))
+      assertBn(await app.getBufferedEther(), tokens(1))
       assertBn(await app.balanceOf(user1), tokens(1))
       assertBn(await app.balanceOf(user2), tokens(2))
       assertBn(await app.balanceOf(user3), tokens(30))
@@ -516,21 +515,21 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       assert.equal(c0.pubkey, pad('0x010203', 48))
       assert.equal(c0.withdrawal_credentials, pad('0x0202', 32))
       assert.equal(c0.signature, pad('0x01', 96))
-      assertBn(c0.value, ETH(32))
+      assertBn(c0.value, tokens(32))
 
       // +100 ETH, test partial unbuffering
-      await web3.eth.sendTransaction({ to: app.address, from: user1, value: ETH(100) })
+      await app.submit(tokens(100), ZERO_ADDRESS, { from: user1 })
       await app.depositBufferedEther(1, { from: depositor })
-      await checkStat({ depositedValidators: 2, beaconValidators: 0, beaconBalance: ETH(0) })
-      assertBn(await app.getTotalPooledEther(), ETH(133))
-      assertBn(await app.getBufferedEther(), ETH(69))
+      await checkStat({ depositedValidators: 2, beaconValidators: 0, beaconBalance: tokens(0) })
+      assertBn(await app.getTotalPooledEther(), tokens(133))
+      assertBn(await app.getBufferedEther(), tokens(69))
       assertBn(await app.balanceOf(user1), tokens(101))
       assertBn(await app.balanceOf(user2), tokens(2))
       assertBn(await app.balanceOf(user3), tokens(30))
       assertBn(await app.totalSupply(), tokens(133))
 
       await app.methods['depositBufferedEther()']({ from: depositor })
-      await checkStat({ depositedValidators: 4, beaconValidators: 0, beaconBalance: ETH(0) })
+      await checkStat({ depositedValidators: 4, beaconValidators: 0, beaconBalance: tokens(0) })
       assertBn(await app.getTotalPooledEther(), ETH(133))
       assertBn(await app.getBufferedEther(), ETH(5))
       assertBn(await app.balanceOf(user1), tokens(101))
@@ -555,48 +554,52 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
   })
 
   it('deposit uses the expected signing keys', async () => {
-    await operators.addNodeOperator('1', ADDRESS_1, { from: voting })
-    await operators.addNodeOperator('2', ADDRESS_2, { from: voting })
+    try {
+      await operators.addNodeOperator('1', ADDRESS_1, { from: voting })
+      await operators.addNodeOperator('2', ADDRESS_2, { from: voting })
 
-    await operators.setNodeOperatorStakingLimit(0, UNLIMITED, { from: voting })
-    await operators.setNodeOperatorStakingLimit(1, UNLIMITED, { from: voting })
+      await operators.setNodeOperatorStakingLimit(0, UNLIMITED, { from: voting })
+      await operators.setNodeOperatorStakingLimit(1, UNLIMITED, { from: voting })
 
-    const op0 = {
-      keys: Array.from({ length: 3 }, (_, i) => `0x11${i}${i}` + 'abcd'.repeat(46 / 2)),
-      sigs: Array.from({ length: 3 }, (_, i) => `0x11${i}${i}` + 'cdef'.repeat(94 / 2))
+      const op0 = {
+        keys: Array.from({ length: 3 }, (_, i) => `0x11${i}${i}` + 'abcd'.repeat(46 / 2)),
+        sigs: Array.from({ length: 3 }, (_, i) => `0x11${i}${i}` + 'cdef'.repeat(94 / 2))
+      }
+
+      const op1 = {
+        keys: Array.from({ length: 3 }, (_, i) => `0x22${i}${i}` + 'efab'.repeat(46 / 2)),
+        sigs: Array.from({ length: 3 }, (_, i) => `0x22${i}${i}` + 'fcde'.repeat(94 / 2))
+      }
+
+      await app.setWithdrawalCredentials(pad('0x0202', 32), { from: voting })
+      await operators.addSigningKeys(0, 3, hexConcat(...op0.keys), hexConcat(...op0.sigs), { from: voting })
+      await operators.addSigningKeys(1, 3, hexConcat(...op1.keys), hexConcat(...op1.sigs), { from: voting })
+
+      await app.submit(tokens(32), ZERO_ADDRESS, { from: user2 })
+      await app.methods['depositBufferedEther()']({ from: depositor })
+      assertBn(await depositContract.totalCalls(), 1, 'first submit: total deposits')
+
+      await app.submit(tokens(2 * 32), ZERO_ADDRESS, { from: user2 })
+      await app.methods['depositBufferedEther()']({ from: depositor })
+      assertBn(await depositContract.totalCalls(), 3, 'second submit: total deposits')
+
+      await app.submit(tokens(2 * 32), ZERO_ADDRESS, { from: user2 })
+      await app.methods['depositBufferedEther()']({ from: depositor })
+      assertBn(await depositContract.totalCalls(), 6, 'third submit: total deposits')
+
+      const calls = await Promise.all(Array.from({ length: 6 }, (_, i) => depositContract.calls(i)))
+      const keys = [...op0.keys, ...op1.keys]
+      const sigs = [...op0.sigs, ...op1.sigs]
+      const pairs = keys.map((key, i) => `${key}|${sigs[i]}`)
+
+      assert.sameMembers(
+        calls.map((c) => `${c.pubkey}|${c.signature}`),
+        pairs,
+        'pairs'
+      )
+    } catch (err) {
+      console.log(err)
     }
-
-    const op1 = {
-      keys: Array.from({ length: 3 }, (_, i) => `0x22${i}${i}` + 'efab'.repeat(46 / 2)),
-      sigs: Array.from({ length: 3 }, (_, i) => `0x22${i}${i}` + 'fcde'.repeat(94 / 2))
-    }
-
-    await app.setWithdrawalCredentials(pad('0x0202', 32), { from: voting })
-    await operators.addSigningKeys(0, 3, hexConcat(...op0.keys), hexConcat(...op0.sigs), { from: voting })
-    await operators.addSigningKeys(1, 3, hexConcat(...op1.keys), hexConcat(...op1.sigs), { from: voting })
-
-    await app.submit(tokens(32), ZERO_ADDRESS, { from: user2 })
-    await app.methods['depositBufferedEther()']({ from: depositor })
-    assertBn(await depositContract.totalCalls(), 1, 'first submit: total deposits')
-
-    await app.submit(tokens(2 * 32), ZERO_ADDRESS, { from: user2 })
-    await app.methods['depositBufferedEther()']({ from: depositor })
-    assertBn(await depositContract.totalCalls(), 3, 'second submit: total deposits')
-
-    await app.submit(tokens(2 * 32), ZERO_ADDRESS, { from: user2 })
-    await app.methods['depositBufferedEther()']({ from: depositor })
-    assertBn(await depositContract.totalCalls(), 6, 'third submit: total deposits')
-
-    const calls = await Promise.all(Array.from({ length: 6 }, (_, i) => depositContract.calls(i)))
-    const keys = [...op0.keys, ...op1.keys]
-    const sigs = [...op0.sigs, ...op1.sigs]
-    const pairs = keys.map((key, i) => `${key}|${sigs[i]}`)
-
-    assert.sameMembers(
-      calls.map((c) => `${c.pubkey}|${c.signature}`),
-      pairs,
-      'pairs'
-    )
   })
 
   it('deposit works when the first node operator is inactive', async () => {
@@ -678,7 +681,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     assertEvent(receipt, 'StakingResumed')
     await verifyStakeLimitState(bn(0), bn(0), MAX_UINT256, false, false)
 
-    await web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(1.1) })
+    await app.submit(tokens(1.1), ZERO_ADDRESS, { from: user2 })
     receipt = await app.submit(tokens(1.4), ZERO_ADDRESS, { from: user2 })
     assertEvent(receipt, 'Submitted', { expectedArgs: { sender: user2, amount: tokens(1.4), referral: ZERO_ADDRESS } })
   })
