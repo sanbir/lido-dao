@@ -540,7 +540,7 @@ contract Lido is ILido, StETH, AragonApp {
 
         uint256 balance;
         if (_token == ETH) {
-            balance = _getUnaccountedEther();
+            balance = address(this).balance;
             // Transfer replaced by call to prevent transfer gas amount issue
             require(vault.call.value(balance)(), "RECOVER_TRANSFER_FAILED");
         } else {

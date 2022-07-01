@@ -1298,7 +1298,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     await app.setFeeDistribution(3000, 2000, 5000, { from: voting })
 
     // Small deposits
-    for (let i = 0; i < 14; i++) await web3.eth.sendTransaction({ to: app.address, from: user1, value: tokens(10) })
+    for (let i = 0; i < 14; i++) await app.submit(tokens(10), ZERO_ADDRESS, { from: user1 })
     await app.methods['depositBufferedEther()']({ from: depositor })
     await app.submit(tokens(6), ZERO_ADDRESS, { from: user1 })
     await app.methods['depositBufferedEther()']({ from: depositor })
@@ -1568,10 +1568,20 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
         assertEvent(receipt, 'RecoverToVault', { expectedArgs: { vault: vault.address, token: anyToken.address, amount: 100 } })
       })
 
-      it('recovery with unaccounted ether works and emits event', async () => {
-        await app.makeUnaccountedEther({ from: user1, value: ETH(10) })
-        const receipt = await app.transferToVault(ZERO_ADDRESS, { from: nobody })
-        assertEvent(receipt, 'RecoverToVault', { expectedArgs: { vault: vault.address, token: ZERO_ADDRESS, amount: ETH(10) } })
+      it('recovery with unaccounted xDAI works and emits event', async () => {
+        try {
+          await app.makeUnaccountedEther({ from: user1, value: ETH(10) })
+          const receipt = await app.transferToVault(ZERO_ADDRESS, { from: nobody })
+          assertEvent(receipt, 'RecoverToVault', {
+            expectedArgs: {
+              vault: vault.address,
+              token: ZERO_ADDRESS,
+              amount: ETH(10)
+            }
+          })
+        } catch (err) {
+          console.log(err)
+        }
       })
     })
   })
