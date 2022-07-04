@@ -1,7 +1,7 @@
 const { assert } = require('chai')
 const { BN } = require('bn.js')
 const { assertBn, assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
-const { getEventArgument } = require('@aragon/contract-helpers-test')
+const { getEventArgument, ZERO_ADDRESS } = require('@aragon/contract-helpers-test')
 
 const { pad, ETH, tokens } = require('../helpers/utils')
 const { deployDaoAndPool } = require('./helpers/deploy')
@@ -21,6 +21,8 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
     operator_2,
     // users who deposit Ether to the pool
     user1,
+    user2,
+    user3,
     // unrelated address
     nobody,
     depositor
@@ -32,7 +34,7 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
   let depositSecurityModule, depositRoot
 
   it('DAO, node operators registry, token, pool and deposit security module are deployed and initialized', async () => {
-    const deployed = await deployDaoAndPool(appManager, voting, depositor)
+    const deployed = await deployDaoAndPool(appManager, voting, nobody, user1, user2, user3)
 
     // contracts/StETH.sol
     token = deployed.pool
@@ -46,7 +48,7 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
 
     // mocks
     oracleMock = deployed.oracleMock
-    depositContractMock = deployed.depositContractMock
+    depositContractMock = deployed.depositContract
 
     // addresses
     treasuryAddr = deployed.treasuryAddr
@@ -158,28 +160,8 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
     const depositAmount = ETH(32)
     awaitingTotalShares = new BN(depositAmount)
     awaitingUser1Balance = new BN(depositAmount)
-    await web3.eth.sendTransaction({ to: pool.address, from: user1, value: depositAmount })
-    const block = await web3.eth.getBlock('latest')
-    const keysOpIndex = await nodeOperatorRegistry.getKeysOpIndex()
-    const signatures = [
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[0]]
-      ),
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[1]]
-      )
-    ]
-    await depositSecurityModule.depositBufferedEther(depositRoot, keysOpIndex, block.number, block.hash, signatures)
+    await pool.submit(depositAmount, ZERO_ADDRESS, { from: user1 })
+    await pool.methods['depositBufferedEther()']({ from: nobody })
 
     // No Ether was deposited yet to the validator contract
 
@@ -214,27 +196,7 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
   })
 
   it(`pushes pooled eth to the available validator`, async () => {
-    const block = await waitBlocks(await depositSecurityModule.getMinDepositBlockDistance())
-    const keysOpIndex = await nodeOperatorRegistry.getKeysOpIndex()
-    const signatures = [
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[0]]
-      ),
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[1]]
-      )
-    ]
-    await depositSecurityModule.depositBufferedEther(depositRoot, keysOpIndex, block.number, block.hash, signatures)
+    await pool.methods['depositBufferedEther()']({ from: nobody })
   })
 
   it('new validator gets the 32 ETH deposit from the pool', async () => {
@@ -388,28 +350,8 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
     const depositAmount = ETH(32)
     awaitingUser1Balance = awaitingUser1Balance.add(new BN(depositAmount))
     const tokenSupplyBefore = await token.totalSupply()
-    await web3.eth.sendTransaction({ to: pool.address, from: user1, value: depositAmount })
-    const block = await waitBlocks(await depositSecurityModule.getMinDepositBlockDistance())
-    const keysOpIndex = await nodeOperatorRegistry.getKeysOpIndex()
-    const signatures = [
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[0]]
-      ),
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[1]]
-      )
-    ]
-    await depositSecurityModule.depositBufferedEther(depositRoot, keysOpIndex, block.number, block.hash, signatures)
+    await pool.submit(depositAmount, ZERO_ADDRESS, { from: user1 })
+    await pool.methods['depositBufferedEther()']({ from: nobody })
 
     assertBn(await depositContractMock.totalCalls(), 2)
 
@@ -545,28 +487,8 @@ contract('Lido: penalties, slashing, operator stops', (addresses) => {
     awaitingTotalShares = awaitingTotalShares.add(new BN(depositAmount).mul(awaitingTotalShares).div(totalPooledEther))
     awaitingUser1Balance = awaitingUser1Balance.add(new BN(depositAmount))
 
-    await web3.eth.sendTransaction({ to: pool.address, from: user1, value: depositAmount })
-    const block = await waitBlocks(await depositSecurityModule.getMinDepositBlockDistance())
-    const keysOpIndex = await nodeOperatorRegistry.getKeysOpIndex()
-    const signatures = [
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[0]]
-      ),
-      signDepositData(
-        await depositSecurityModule.ATTEST_MESSAGE_PREFIX(),
-        depositRoot,
-        keysOpIndex,
-        block.number,
-        block.hash,
-        guardians.privateKeys[guardians.addresses[1]]
-      )
-    ]
-    await depositSecurityModule.depositBufferedEther(depositRoot, keysOpIndex, block.number, block.hash, signatures)
+    await pool.submit(depositAmount, ZERO_ADDRESS, { from: user1 })
+    await pool.methods['depositBufferedEther()']({ from: nobody })
 
     const ether2Stat = await pool.getBeaconStat()
     assertBn(ether2Stat.depositedValidators, 2, 'no validators have received the current deposit')
