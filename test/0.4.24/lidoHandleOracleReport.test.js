@@ -38,7 +38,7 @@ contract('Lido handleOracleReport', ([appManager, voting, user1, user2, user3, n
     let fakeOracle
     fakeOracle = await OracleMock.new()
     await fakeOracle.setPool(app.address)
-    await assertRevert(fakeOracle.reportBeacon(110, 0, ETH(0), { from: user2 }), 'APP_AUTH_FAILED')
+    await assertRevert(fakeOracle.reportBeacon(110, 0, tokens(0), { from: user2 }), 'APP_AUTH_FAILED')
   })
 
   context('with depositedVals=0, beaconVals=0, bcnBal=0, bufferedEth=0', async () => {
@@ -49,10 +49,10 @@ contract('Lido handleOracleReport', ([appManager, voting, user1, user2, user3, n
     })
 
     it('report BcnValidators:0 BcnBalance:0 = no rewards', async () => {
-      await oracle.reportBeacon(100, 0, ETH(0), { from: user1 })
-      checkStat({ depositedValidators: 0, beaconValidators: 0, beaconBalance: ETH(0) })
-      assertBn(await app.getBufferedEther(), ETH(0))
-      assertBn(await app.getTotalPooledEther(), ETH(0))
+      await oracle.reportBeacon(100, 0, tokens(0), { from: user1 })
+      checkStat({ depositedValidators: 0, beaconValidators: 0, beaconBalance: tokens(0) })
+      assertBn(await app.getBufferedEther(), tokens(0))
+      assertBn(await app.getTotalPooledEther(), tokens(0))
       assert.equal(await app.distributeFeeCalled(), false)
       assertBn(await app.totalRewards(), 0)
     })
