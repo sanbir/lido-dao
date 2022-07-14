@@ -3707,7 +3707,7 @@ __metadata:
     ethereumjs-util: ^7.0.8
     ethers: ^5.0.19
     hardhat: ^2.8.0
-    hardhat-contract-sizer: ^2.5.0
+    hardhat-contract-sizer: ^2.6.1
     hardhat-gas-reporter: 1.0.8
     husky: ^4.3.0
     ipfs-http-client: ^55.0.0
@@ -14305,15 +14305,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hardhat-contract-sizer@npm:^2.5.0":
-  version: 2.5.0
-  resolution: "hardhat-contract-sizer@npm:2.5.0"
+"hardhat-contract-sizer@npm:^2.6.1":
+  version: 2.6.1
+  resolution: "hardhat-contract-sizer@npm:2.6.1"
   dependencies:
     chalk: ^4.0.0
     cli-table3: ^0.6.0
   peerDependencies:
     hardhat: ^2.0.0
-  checksum: 35c01af2cec385bbe1d51e5fdf5fb8e3fe2a6066f48c3b0800bf55710f89c01c52a0b43ce4e1f4218baf67a22b2b3f33132c20d994063a7aae0baa3697e35eab
+  checksum: 1ad51d3fb763f8e0d6ac78bcf1e7ff147c18f8daf7277f97a705c26489e364de530001c5a3360d2403d9b12abcb508c6ae3fe096828d71869fac41957101fdaa
   languageName: node
   linkType: hard
 

@@ -1,5 +1,5 @@
 {
-  "networkId": 1337,
+  "networkId": 77,
   "ipfsAPI": "http://127.0.0.1:5001/api/v0",
   "multisigAddress": "0xb4124cEB3451635DAcedd11767f004d8a28c6eE7",
   "lidoApmEnsName": "lidopm.eth",
@@ -12,7 +12,7 @@
       "voteDuration": 14400
     },
     "beaconSpec": {
-      "depositContractAddress": "",
+      "depositContractAddress": "0x92dCf7D81CB563B676687e4a8AcBB6F4c9902627",
       "epochsPerFrame": 225,
       "slotsPerEpoch": 32,
       "secondsPerSlot": 12,

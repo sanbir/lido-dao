@@ -109,7 +109,7 @@
     "eth-gas-reporter": "latest",
     "ethereumjs-testrpc-sc": "^6.5.1-sc.1",
     "hardhat": "^2.8.0",
-    "hardhat-contract-sizer": "^2.5.0",
+    "hardhat-contract-sizer": "^2.6.1",
     "hardhat-gas-reporter": "1.0.8",
     "husky": "^4.3.0",
     "ipfs-http-client": "^55.0.0",
