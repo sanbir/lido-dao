@@ -286,7 +286,27 @@ contract Lido is ILido, StETH, AragonApp {
     */
     function submit(uint256 _amount, address _referral) external returns (uint256) {
         _receiveMgno(_amount);
-        return _submit(_amount, _referral);
+        return _submit(_amount, _referral, msg.sender);
+    }
+
+
+    /**
+     * @dev ERC677 callback on mGNO transferAndCall.
+     * @param from sender (user) address.
+     * @param value amount of the received tokens.
+     * @param data should be empty.
+     */
+    function onTokenTransfer(
+        address from,
+        uint256 value,
+        bytes data
+    ) external returns (bool) {
+        address token = msg.sender;
+        require(token == address(getMGNO()), "mGNO only");
+
+        _submit(value, address(0), from);
+
+        return true;
     }
 
     /**
@@ -708,9 +728,10 @@ contract Lido is ILido, StETH, AragonApp {
     * @dev Process user deposit, mints liquid tokens and increase the pool buffer
     * @param _amount amount of mGNO.
     * @param _referral address of referral.
+    * @param _to address of shares recipient.
     * @return amount of StETH shares generated
     */
-    function _submit(uint256 _amount, address _referral) internal returns (uint256) {
+    function _submit(uint256 _amount, address _referral, address _to) internal returns (uint256) {
         require(_amount != 0, "ZERO_DEPOSIT");
 
         StakeLimitState.Data memory stakeLimitData = STAKING_STATE_POSITION.getStorageStakeLimitStruct();
@@ -733,12 +754,12 @@ contract Lido is ILido, StETH, AragonApp {
             sharesAmount = _amount;
         }
 
-        _mintShares(msg.sender, sharesAmount);
+        _mintShares(_to, sharesAmount);
 
         BUFFERED_ETHER_POSITION.setStorageUint256(_getBufferedEther().add(_amount));
-        emit Submitted(msg.sender, _amount, _referral);
+        emit Submitted(_to, _amount, _referral);
 
-        _emitTransferAfterMintingShares(msg.sender, sharesAmount);
+        _emitTransferAfterMintingShares(_to, sharesAmount);
         return sharesAmount;
     }
 

@@ -265,6 +265,14 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     await assertRevert(web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(1) }), `NO_NATIVE_CURRENCY`)
   })
 
+  it('mGNO transferAndCall works', async () => {
+    const success = await mGno.transferAndCall(app.address, tokens(32), '0x', { from: user2 })
+    assert(success)
+    assertBn(await mGno.balanceOf(app.address), tokens(32))
+    await app.methods['depositBufferedEther()']({ from: depositor })
+    assertBn(await app.balanceOf(user2), STETH(32))
+  })
+
   it('Execution layer rewards distribution works when zero rewards reported', async () => {
     try {
       const depositAmount = 32
