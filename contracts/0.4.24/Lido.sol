@@ -14,9 +14,11 @@ import "./interfaces/ILido.sol";
 import "./interfaces/INodeOperatorsRegistry.sol";
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IMGno.sol";
+import "./interfaces/IGno.sol";
 import "./interfaces/ILidoExecutionLayerRewardsVault.sol";
 
 import "./StETH.sol";
+import "./LidoOnGnosis.sol";
 
 import "./lib/StakeLimitUtils.sol";
 
@@ -49,7 +51,7 @@ interface IERC721 {
 * Pool will be upgraded to an actual implementation when withdrawals are enabled
 * (Phase 1.5 or 2 of Eth2 launch, likely late 2022 or 2023).
 */
-contract Lido is ILido, StETH, AragonApp {
+contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     using SafeMath for uint256;
     using UnstructuredStorage for bytes32;
     using StakeLimitUnstructuredStorage for bytes32;
@@ -130,10 +132,18 @@ contract Lido is ILido, StETH, AragonApp {
         address _oracle,
         INodeOperatorsRegistry _operators,
         address _treasury,
-        address _insuranceFund
+        address _insuranceFund,
+
+        IMGno _mGno,
+        IGno _gno
     )
         public onlyInit
     {
+        LidoOnGnosis._initialize(
+            _mGno,
+            _gno
+        );
+
         NODE_OPERATORS_REGISTRY_POSITION.setStorageAddress(address(_operators));
         DEPOSIT_CONTRACT_POSITION.setStorageAddress(address(_depositContract));
 
@@ -281,35 +291,6 @@ contract Lido is ILido, StETH, AragonApp {
     }
 
     /**
-    * @notice Send funds to the pool with optional _referral parameter
-    * @return Amount of StETH shares generated
-    */
-    function submit(uint256 _amount, address _referral) external returns (uint256) {
-        _receiveMgno(_amount);
-        return _submit(_amount, _referral, msg.sender);
-    }
-
-
-    /**
-     * @dev ERC677 callback on mGNO transferAndCall.
-     * @param from sender (user) address.
-     * @param value amount of the received tokens.
-     * @param data should be empty.
-     */
-    function onTokenTransfer(
-        address from,
-        uint256 value,
-        bytes data
-    ) external returns (bool) {
-        address token = msg.sender;
-        require(token == address(getMGNO()), "mGNO only");
-
-        _submit(value, address(0), from);
-
-        return true;
-    }
-
-    /**
     * @notice A payable function for execution layer rewards. Can be called only by ExecutionLayerRewardsVault contract
     * @dev We need a dedicated function because funds received by the default payable function
     * are treated as a user deposit
@@ -321,10 +302,6 @@ contract Lido is ILido, StETH, AragonApp {
             TOTAL_EL_REWARDS_COLLECTED_POSITION.getStorageUint256().add(msg.value));
 
         emit ELRewardsReceived(msg.value);
-    }
-
-    function _receiveMgno(uint256 _amount) internal {
-        getMGNO().transferFrom(msg.sender, address(this), _amount);
     }
 
     /**
@@ -637,27 +614,6 @@ contract Lido is ILido, StETH, AragonApp {
     */
     function getDepositContract() public view returns (IDepositContract) {
         return IDepositContract(DEPOSIT_CONTRACT_POSITION.getStorageAddress());
-    }
-
-    /**
-    * @notice Gets mGNO contract handle
-    */
-    function getMGNO() public view returns (IMGno) {
-        return IMGno(getDepositContract().stake_token());
-    }
-
-    /**
-    * @dev Gets mGNO balance of this contract
-    */
-    function getMgnoBalance() internal view returns (uint256) {
-        return getMGNO().balanceOf(address(this));
-    }
-
-    /**
-    * @dev Gets mGNO balance of this contract
-    */
-    function mGnoIncreaseAllowance(address spender, uint256 addedValue) internal {
-        getMGNO().increaseAllowance(spender, addedValue);
     }
 
     /**
