@@ -9,7 +9,7 @@ import "../interfaces/IStETH.sol";
 
 
 contract WstETHMock is WstETH {
-    constructor(IStETH _StETH) public WstETH(_StETH) {}
+    constructor(IStETH _StETH, ILidoEth _lidoEth) public WstETH(_StETH, _lidoEth) {}
 
     function mint(address recipient, uint256 amount) public {
         _mint(recipient, amount);

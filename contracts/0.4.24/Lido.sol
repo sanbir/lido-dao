@@ -13,12 +13,10 @@ import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interfaces/ILido.sol";
 import "./interfaces/INodeOperatorsRegistry.sol";
 import "./interfaces/IDepositContract.sol";
-import "./interfaces/IMGno.sol";
-import "./interfaces/IGno.sol";
 import "./interfaces/ILidoExecutionLayerRewardsVault.sol";
+import "./interfaces/ILidoEthErc20.sol";
 
 import "./StETH.sol";
-import "./LidoOnGnosis.sol";
 
 import "./lib/StakeLimitUtils.sol";
 
@@ -51,11 +49,14 @@ interface IERC721 {
 * Pool will be upgraded to an actual implementation when withdrawals are enabled
 * (Phase 1.5 or 2 of Eth2 launch, likely late 2022 or 2023).
 */
-contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
+contract Lido is ILido, StETH, AragonApp {
     using SafeMath for uint256;
     using UnstructuredStorage for bytes32;
     using StakeLimitUnstructuredStorage for bytes32;
     using StakeLimitUtils for StakeLimitState.Data;
+
+    uint256 constant public _IS_ETH = 1;
+    uint256 constant public _IS_ERC20 = 2;
 
     /// ACL
     bytes32 constant public PAUSE_ROLE = keccak256("PAUSE_ROLE");
@@ -76,7 +77,6 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     uint256 constant public WITHDRAWAL_CREDENTIALS_LENGTH = 32;
     uint256 constant public SIGNATURE_LENGTH = 96;
 
-    /// @dev 32 mGNO
     uint256 constant public DEPOSIT_SIZE = 32 ether;
 
     uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -133,17 +133,11 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
         INodeOperatorsRegistry _operators,
         address _treasury,
         address _insuranceFund,
-
-        IMGno _mGno,
-        IGno _gno
+        ILidoEthErc20 _lidoEthErc20
     )
         public onlyInit
     {
-        LidoOnGnosis._initialize(
-            _mGno,
-            _gno
-        );
-
+        LIDO_ETH_ERC20_POSITION.setStorageAddress(address(_lidoEthErc20));
         NODE_OPERATORS_REGISTRY_POSITION.setStorageAddress(address(_operators));
         DEPOSIT_CONTRACT_POSITION.setStorageAddress(address(_depositContract));
 
@@ -153,9 +147,10 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
-    * @notice Stops accepting new mGNO to the protocol
+    * @notice Stops accepting new Ether to the protocol
     *
-    * @dev While accepting new mGNO is stopped, calls to the `submit` function will revert.
+    * @dev While accepting new Ether is stopped, calls to the `submit` function,
+    * as well as to the default payable function, will revert.
     *
     * Emits `StakingPaused` event.
     */
@@ -281,13 +276,33 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
-    * @dev Fallback should not accept xDAI.
+    * @dev Fallback.
     */
     function() external payable {
-        // protection against accidental submissions by calling non-existent function
-        require(msg.data.length == 0, "NON_EMPTY_DATA");
-        // protection against sending native currency (xDAI)
-        require(msg.value == 0, "NO_NATIVE_CURRENCY");
+        revert("USE_LIDO_ETH_ERC20");
+    }
+
+    /**
+    * @notice Send funds to the pool with optional _referral parameter
+    * @dev This function is alternative way to submit funds. Supports optional referral address.
+    * @return Amount of StETH shares generated
+    */
+    function submit(
+        address _to,
+        uint256 _amount,
+        address _referral,
+        uint256 _stakeTokenType
+    ) external
+      payable
+      returns (uint256) {
+        require(msg.sender == address(getLidoEthErc20()), "LIDO_ETH_ERC20_ONLY");
+
+        return _submit(
+            _stakeTokenType == _IS_ETH ? msg.value : _amount,
+            _referral,
+            _to,
+            _stakeTokenType
+        );
     }
 
     /**
@@ -457,23 +472,6 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
         emit ELRewardsWithdrawalLimitSet(_limitPoints);
     }
 
-    function uint2str(uint i) internal pure returns (string){
-        if (i == 0) return "0";
-        uint j = i;
-        uint length;
-        while (j != 0){
-            length++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(length);
-        uint k = length - 1;
-        while (i != 0){
-            bstr[k--] = byte(48 + i % 10);
-            i /= 10;
-        }
-        return string(bstr);
-    }
-
     /**
     * @notice Updates beacon stats, collects rewards from LidoExecutionLayerRewardsVault and distributes all rewards if beacon balance increased
     * @dev periodically called by the Oracle contract
@@ -510,11 +508,16 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
         uint256 executionLayerRewards;
         address executionLayerRewardsVaultAddress = getELRewardsVault();
 
+        // TODO: EL rewards for xDAI !!!
+
         if (executionLayerRewardsVaultAddress != address(0)) {
-            // withdraw all xDAI
             executionLayerRewards = ILidoExecutionLayerRewardsVault(executionLayerRewardsVaultAddress).withdrawRewards(
-                uint256(-1)
+                (_getTotalPooledEther() * EL_REWARDS_WITHDRAWAL_LIMIT_POSITION.getStorageUint256()) / TOTAL_BASIS_POINTS
             );
+
+            if (executionLayerRewards != 0) {
+                BUFFERED_ETHER_POSITION.setStorageUint256(_getBufferedEther().add(executionLayerRewards));
+            }
         }
 
         // Don’t mint/distribute any protocol fee on the non-profitable Lido oracle report
@@ -522,7 +525,7 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
         // See ADR #3 for details: https://research.lido.fi/t/rewards-distribution-after-the-merge-architecture-decision-record/1535
         if (_beaconBalance > rewardBase) {
             uint256 rewards = _beaconBalance.sub(rewardBase);
-            distributeFee(rewards);
+            distributeFee(rewards.add(executionLayerRewards));
         }
     }
 
@@ -537,7 +540,7 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
 
         uint256 balance;
         if (_token == ETH) {
-            balance = address(this).balance;
+            balance = _getUnaccountedEther();
             // Transfer replaced by call to prevent transfer gas amount issue
             require(vault.call.value(balance)(), "RECOVER_TRANSFER_FAILED");
         } else {
@@ -617,6 +620,13 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
+    * @notice Gets
+    */
+    function getStakeTokenType() public view returns (uint256) {
+        return getLidoEthErc20().STAKE_TOKEN_TYPE();
+    }
+
+    /**
     * @notice Gets authorized oracle address
     * @return address of oracle contract
     */
@@ -682,12 +692,10 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
 
     /**
     * @dev Process user deposit, mints liquid tokens and increase the pool buffer
-    * @param _amount amount of mGNO.
     * @param _referral address of referral.
-    * @param _to address of shares recipient.
     * @return amount of StETH shares generated
     */
-    function _submit(uint256 _amount, address _referral, address _to) internal returns (uint256) {
+    function _submit(uint256 _amount, address _referral, address _to, uint256 _stakeTokenType) internal returns (uint256) {
         require(_amount != 0, "ZERO_DEPOSIT");
 
         StakeLimitState.Data memory stakeLimitData = STAKING_STATE_POSITION.getStorageStakeLimitStruct();
@@ -728,7 +736,7 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
-    * @dev Deposits buffered mGNO to the DepositContract and assigns chunked deposits to node operators
+    * @dev Deposits buffered eth to the DepositContract and assigns chunked deposits to node operators
     */
     function _depositBufferedEther(uint256 _maxDeposits) internal whenNotStopped {
         uint256 buffered = _getBufferedEther();
@@ -802,14 +810,10 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
             )
         );
 
-        uint256 targetBalance = getMgnoBalance().sub(value);
+        uint256 targetBalance = address(this).balance.sub(value);
 
-        IDepositContract depositContractAddress = getDepositContract();
-        mGnoIncreaseAllowance(depositContractAddress, value);
-        getDepositContract().deposit(
-            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot, value);
-
-        require(getMgnoBalance() == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
+        getDepositContract().deposit.value(value)(_pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot, 0);
+        require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 
     /**
@@ -916,26 +920,26 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
-    * @dev Gets the amount of mGNO temporary buffered on this contract balance
+    * @dev Gets the amount of Ether temporary buffered on this contract balance
     */
     function _getBufferedEther() internal view returns (uint256) {
         uint256 buffered = BUFFERED_ETHER_POSITION.getStorageUint256();
-        assert(getMgnoBalance() >= buffered);
+        assert(address(this).balance >= buffered);
 
         return buffered;
     }
 
     /**
-    * @dev Gets unaccounted (excess) mGNO on this contract balance
+    * @dev Gets unaccounted (excess) Ether on this contract balance
     */
     function _getUnaccountedEther() internal view returns (uint256) {
-        return getMgnoBalance().sub(_getBufferedEther());
+        return address(this).balance.sub(_getBufferedEther());
     }
 
     /**
     * @dev Calculates and returns the total base balance (multiple of 32) of validators in transient state,
     *      i.e. submitted to the official Deposit contract but not yet visible in the beacon state.
-    * @return transient balance in wei (1e-18 mGNO)
+    * @return transient balance in wei (1e-18 Ether)
     */
     function _getTransientBalance() internal view returns (uint256) {
         uint256 depositedValidators = DEPOSITED_VALIDATORS_POSITION.getStorageUint256();
@@ -946,7 +950,7 @@ contract Lido is ILido, StETH, AragonApp, LidoOnGnosis {
     }
 
     /**
-    * @dev Gets the total amount of mGNO controlled by the system
+    * @dev Gets the total amount of Ether controlled by the system
     * @return total balance in wei
     */
     function _getTotalPooledEther() internal view returns (uint256) {

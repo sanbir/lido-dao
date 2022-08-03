@@ -28,6 +28,7 @@ import "../Lido.sol";
 import "../oracle/LidoOracle.sol";
 import "../nos/NodeOperatorsRegistry.sol";
 import "../interfaces/IDepositContract.sol";
+import "../interfaces/ILidoEthErc20.sol";
 
 
 contract LidoTemplate is IsContract {
@@ -300,7 +301,8 @@ contract LidoTemplate is IsContract {
         string _tokenSymbol,
         uint64[3] _votingSettings,
         IDepositContract _beaconDepositContract,
-        uint32[4] _beaconSpec
+        uint32[4] _beaconSpec,
+        ILidoEthErc20 _lidoEthErc20
     )
         onlyOwner
         external
@@ -376,7 +378,8 @@ contract LidoTemplate is IsContract {
             state.oracle,
             state.operators,
             state.agent, // treasury
-            state.agent  // insurance fund
+            state.agent,  // insurance fund
+            _lidoEthErc20
         );
 
         // used for issuing vested tokens in the next step

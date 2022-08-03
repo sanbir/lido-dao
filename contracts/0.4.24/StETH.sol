@@ -9,6 +9,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@aragon/os/contracts/common/UnstructuredStorage.sol";
 import "@aragon/os/contracts/lib/math/SafeMath.sol";
 import "./lib/Pausable.sol";
+import "./interfaces/ILidoEthErc20.sol";
 
 /**
  * @title Interest-bearing ERC20-like token for Lido Liquid Stacking protocol.
@@ -81,6 +82,8 @@ contract StETH is IERC20, Pausable {
      */
     bytes32 internal constant TOTAL_SHARES_POSITION = keccak256("lido.StETH.totalShares");
 
+    bytes32 internal constant LIDO_ETH_ERC20_POSITION = keccak256("lido.Lido.lidoEthErc20");
+
     /**
       * @notice An executed shares transfer from `sender` to `recipient`.
       *
@@ -112,18 +115,25 @@ contract StETH is IERC20, Pausable {
     );
 
     /**
+    * @notice Gets LidoEthErc20 contract handle
+    */
+    function getLidoEthErc20() public view returns (ILidoEthErc20) {
+        return ILidoEthErc20(LIDO_ETH_ERC20_POSITION.getStorageAddress());
+    }
+
+    /**
      * @return the name of the token.
      */
-    function name() public pure returns (string) {
-        return "Liquid staked mGNO";
+    function name() public view returns (string) {
+        return getLidoEthErc20().name();
     }
 
     /**
      * @return the symbol of the token, usually a shorter version of the
      * name.
      */
-    function symbol() public pure returns (string) {
-        return "stGNO";
+    function symbol() public view returns (string) {
+        return getLidoEthErc20().symbol();
     }
 
     /**

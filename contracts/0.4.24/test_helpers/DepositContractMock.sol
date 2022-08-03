@@ -21,18 +21,17 @@ contract DepositContractMock is IDepositContract {
 
     Call[] public calls;
     bytes32 internal depositRoot;
-    address internal stakeToken;
 
     function deposit(
         bytes /* 48 */ pubkey,
         bytes /* 32 */ withdrawal_credentials,
         bytes /* 96 */ signature,
-        bytes32 deposit_data_root,
-        uint256 stake_amount
+        bytes32 deposit_data_root
     )
         external
+        payable
     {
-        calls.push(Call(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount));
+        calls.push(Call(pubkey, withdrawal_credentials, signature, deposit_data_root, msg.value));
     }
 
     function totalCalls() external view returns (uint256) {
@@ -49,13 +48,5 @@ contract DepositContractMock is IDepositContract {
 
     function set_deposit_root(bytes32 _newRoot) external {
         depositRoot = _newRoot;
-    }
-
-    function set_stake_token(address _stake_token) external {
-        stakeToken = _stake_token;
-    }
-
-    function stake_token() public view returns (address) {
-        return stakeToken;
     }
 }

@@ -15,7 +15,8 @@ contract LidoMock is Lido {
     function initialize(
         IDepositContract _depositContract,
         address _oracle,
-        INodeOperatorsRegistry _operators
+        INodeOperatorsRegistry _operators,
+        ILidoEthErc20 _lidoEthErc20
     )
     public
     {
@@ -24,7 +25,8 @@ contract LidoMock is Lido {
           _oracle,
           _operators,
           new VaultMock(),
-          new VaultMock()
+          new VaultMock(),
+          _lidoEthErc20
         );
     }
 

@@ -4,7 +4,6 @@
 
 pragma solidity 0.4.24;
 
-import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 /**
   * @title Deposit contract interface
@@ -16,7 +15,7 @@ interface IDepositContract {
       * @param withdrawal_credentials Credentials that allows to withdraw funds
       * @param signature Signature of the request
       * @param deposit_data_root The deposits Merkle tree node, used as a checksum
-      * @param stake_amount Instead of payable since ERC-20 is staked
+      * @param stake_amount for ERC-20 only
       */
     function deposit(
         bytes /* 48 */ pubkey,
@@ -25,7 +24,7 @@ interface IDepositContract {
         bytes32 deposit_data_root,
         uint256 stake_amount
     )
-        external;
+        external payable;
 
     function stake_token() public view returns (address);
 }
