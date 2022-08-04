@@ -9,20 +9,11 @@ import "@openzeppelin/contracts-v4.4/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-v4.4/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-v4.4/token/ERC20/utils/SafeERC20.sol";
 
-interface ILido {
-    /**
-      * @notice A payable function supposed to be called only by LidoExecLayerRewardsVault contract
-      * @dev We need a dedicated function because funds received by the default payable function
-      * are treated as a user deposit
-      */
-    function receiveELRewards() external payable;
-}
-
 
 /**
  * @title A vault for temporary storage of execution layer rewards (MEV and tx priority fee)
  */
-contract LidoExecutionLayerRewardsVault {
+abstract contract LidoExecutionLayerRewardsVaultBase {
     using SafeERC20 for IERC20;
 
     address public immutable LIDO;
@@ -80,19 +71,10 @@ contract LidoExecutionLayerRewardsVault {
     /**
       * @notice Withdraw all accumulated rewards to Lido contract
       * @dev Can be called only by the Lido contract
-      * @param _maxAmount Max amount of ETH to withdraw
+      * @param _maxAmount Max amount of ETH or ERC-20 stake token to withdraw
       * @return amount of funds received as execution layer rewards (in wei)
       */
-    function withdrawRewards(uint256 _maxAmount) external returns (uint256 amount) {
-        require(msg.sender == LIDO, "ONLY_LIDO_CAN_WITHDRAW");
-
-        uint256 balance = address(this).balance;
-        amount = (balance > _maxAmount) ? _maxAmount : balance;
-        if (amount > 0) {
-            ILido(LIDO).receiveELRewards{value: amount}();
-        }
-        return amount;
-    }
+    function withdrawRewards(uint256 _maxAmount) virtual external returns (uint256 amount);
 
     /**
       * Transfers a given `_amount` of an ERC20-token (defined by the `_token` contract address)

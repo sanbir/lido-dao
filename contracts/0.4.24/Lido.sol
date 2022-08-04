@@ -508,7 +508,9 @@ contract Lido is ILido, StETH, AragonApp {
         uint256 executionLayerRewards;
         address executionLayerRewardsVaultAddress = getELRewardsVault();
 
-        // TODO: EL rewards for xDAI !!!
+        // all the ETH/ERC-20 stake token specific logic,
+        // including the selling native currency for ERC-20 stake token,
+        // is incapsulated in the vault's withdrawRewards function
 
         if (executionLayerRewardsVaultAddress != address(0)) {
             executionLayerRewards = ILidoExecutionLayerRewardsVault(executionLayerRewardsVaultAddress).withdrawRewards(
