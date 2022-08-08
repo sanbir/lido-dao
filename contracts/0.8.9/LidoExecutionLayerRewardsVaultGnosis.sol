@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-v4.4/token/ERC20/utils/SafeERC20.sol";
 import "./LidoExecutionLayerRewardsVaultErc20.sol";
 import "./interfaces/IGPv2Settlement.sol";
 import "./interfaces/IWXDAI.sol";
+import "./interfaces/IGno.sol";
 
 /**
  * @title A vault for temporary storage of execution layer rewards (MEV and tx priority fee)
@@ -17,12 +18,11 @@ import "./interfaces/IWXDAI.sol";
 contract LidoExecutionLayerRewardsVaultGnosis is LidoExecutionLayerRewardsVaultErc20 {
     using SafeERC20 for IERC20;
 
-    uint256 XDAI_AMOUNT_FOR_TX_FEES = 1 ether; // = 1 xDAI, arbitrary, can be other as well
-    uint256 MIN_XDAI_AMOUNT_TO_SELL = 10 ether; // = 10 xDAI, arbitrary, can be other as well
-
     IGPv2Settlement public immutable GP_V2_SETTLEMENT;
     address public immutable GP_V2_VAULT_RELAYER;
     IWXDAI public immutable WXDAI;
+    IGno public immutable GNO;
+    address public immutable MGNO_WRAPPER;
 
     /**
       * Ctor
@@ -37,31 +37,48 @@ contract LidoExecutionLayerRewardsVaultGnosis is LidoExecutionLayerRewardsVaultE
         IERC20 _stakeToken,
         IGPv2Settlement _GPv2Settlement,
         address _GPv2VaultRelayer,
-        IWXDAI _wXDai
+        IWXDAI _wXDai,
+        IGno _gno,
+        address _mGnoWrapper
     )
         LidoExecutionLayerRewardsVaultErc20(_lido, _treasury, _stakeToken)
     {
         GP_V2_SETTLEMENT = _GPv2Settlement;
         GP_V2_VAULT_RELAYER = _GPv2VaultRelayer;
         WXDAI = _wXDai;
+        GNO = _gno;
+        MGNO_WRAPPER = _mGnoWrapper;
     }
 
     /**
-      * Initiate sell of native currency for stake token
-      * @param _amount xDAI amount in wei
+      * Initiate sell of XDAI for GNO
+      * @param _orderUid The unique identifier of the order to pre-sign.
       */
-    function initiateSellOfNativeCurrencyForStakeToken(uint256 _amount) virtual internal {
-        if (_amount < MIN_XDAI_AMOUNT_TO_SELL + XDAI_AMOUNT_FOR_TX_FEES) {
-            return;
-        }
+    function initiateSellOfNativeCurrencyForStakeToken(bytes calldata _orderUid) override external {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "ZERO_BALANCE");
 
-        uint256 amountToSell = _amount - XDAI_AMOUNT_FOR_TX_FEES;
+        WXDAI.deposit{ value: balance }();
+        WXDAI.approve(GP_V2_VAULT_RELAYER, balance);
+        GP_V2_SETTLEMENT.setPreSignature(_orderUid, false);
+    }
 
-        WXDAI.deposit{ value: amountToSell }();
-        WXDAI.approve(GP_V2_VAULT_RELAYER, amountToSell);
+    /**
+      * Wrap GNO into mGNO
+      */
+    function _beforeStakeTokenTransfer() override internal {
+        uint256 gnoBalance = _getGnoBalance();
+        _convertGnoToMgno(gnoBalance);
+    }
 
-        bytes orderUid;
-        // TODO
-        GP_V2_SETTLEMENT.setPreSignature(orderUid, true);
+    function _convertGnoToMgno(uint256 _amount) internal {
+        GNO.transferAndCall(address(MGNO_WRAPPER), _amount, "");
+    }
+
+    /**
+    * @dev Gets GNO balance
+    */
+    function _getGnoBalance() internal view returns (uint256) {
+        return GNO.balanceOf(address(this));
     }
 }

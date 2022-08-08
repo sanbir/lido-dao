@@ -37,11 +37,7 @@ abstract contract LidoExecutionLayerRewardsVaultErc20 is LidoExecutionLayerRewar
     function withdrawRewards(uint256) external returns (uint256 amount) {
         require(msg.sender == LIDO, "ONLY_LIDO_CAN_WITHDRAW");
 
-        uint256 balance = address(this).balance;
-        if (amount > 0) {
-            initiateSellOfNativeCurrencyForStakeToken(amount);
-        }
-
+        _beforeStakeTokenTransfer();
         amount = _getStakeTokenBalance();
         if (amount > 0) {
             _transferStakeToken(LIDO, amount);
@@ -53,7 +49,12 @@ abstract contract LidoExecutionLayerRewardsVaultErc20 is LidoExecutionLayerRewar
       * Initiate sell of native currency for stake token
       * @param _amount native currency amount
       */
-    function initiateSellOfNativeCurrencyForStakeToken(uint256 _amount) virtual internal;
+    function initiateSellOfNativeCurrencyForStakeToken(bytes calldata _orderUid) virtual external;
+
+    /**
+      * Do optional steps (like wrapping) before stake token transfer
+      */
+    function _beforeStakeTokenTransfer() virtual internal;
 
     /**
     * @dev Gets stake token balance of this contract
