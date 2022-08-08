@@ -4,6 +4,9 @@ pragma solidity 0.8.9;
 
 import "./IERC677.sol";
 
+/**
+  * @title GNO interface
+  */
 interface IGno is IERC677 {
 
     /// @dev Allows to spend holder's unlimited amount by the specified spender.
