@@ -174,6 +174,15 @@ module.exports = {
         settings: solcSettings6
       },
       {
+        version: '0.7.6',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000000
+          }
+        }
+      },
+      {
         version: '0.8.9',
         settings: solcSettings8
       }

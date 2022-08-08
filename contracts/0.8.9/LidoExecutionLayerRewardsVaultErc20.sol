@@ -31,10 +31,9 @@ abstract contract LidoExecutionLayerRewardsVaultErc20 is LidoExecutionLayerRewar
     /**
       * @notice Withdraw all accumulated rewards to Lido contract
       * @dev Can be called only by the Lido contract
-      * @param _maxAmount Max amount of ERC-20 to withdraw
       * @return amount of funds received as execution layer rewards (in stake tokens)
       */
-    function withdrawRewards(uint256) external returns (uint256 amount) {
+    function withdrawRewards(uint256) override external returns (uint256 amount) {
         require(msg.sender == LIDO, "ONLY_LIDO_CAN_WITHDRAW");
 
         _beforeStakeTokenTransfer();
@@ -47,7 +46,6 @@ abstract contract LidoExecutionLayerRewardsVaultErc20 is LidoExecutionLayerRewar
 
     /**
       * Initiate sell of native currency for stake token
-      * @param _amount native currency amount
       */
     function initiateSellOfNativeCurrencyForStakeToken(bytes calldata _orderUid) virtual external;
 

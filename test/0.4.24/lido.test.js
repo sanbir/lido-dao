@@ -10,10 +10,17 @@ const { getEthBalance, formatStEth: formamtStEth, formatBN } = require('../helpe
 
 const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 
+const LidoGnosis = artifacts.require('LidoGnosis.sol')
+const SBCWrapper = artifacts.require('SBCWrapper.sol')
+const GnoMock = artifacts.require('GnoMock.sol')
+const WXDAI = artifacts.require('WXDAI.sol')
+const GPv2VaultRelayer = artifacts.require('GPv2VaultRelayer.sol')
+const GPv2AllowListAuthentication = artifacts.require('GPv2AllowListAuthentication.sol')
+const GPv2Settlement = artifacts.require('GPv2Settlement.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
 const Lido = artifacts.require('LidoMock.sol')
-const ELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVault.sol')
+const ELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVaultGnosis.sol')
 const OracleMock = artifacts.require('OracleMock.sol')
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy.sol')
 const SBCDepositContract = artifacts.require('SBCDepositContract.sol')
@@ -57,7 +64,8 @@ const STETH = ETH
 const tokens = ETH
 
 contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) => {
-  let mGno, appBase, nodeOperatorsRegistryBase, app, oracle, depositContract, operators
+  let mGno, gno, mGnoWrapper, lidoGnosis, appBase, nodeOperatorsRegistryBase
+  let app, oracle, depositContract, operators
   let treasuryAddr, insuranceAddr
   let dao, acl
   let elRewardsVault, rewarder
@@ -70,6 +78,8 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       appBase = await Lido.new()
       oracle = await OracleMock.new()
       yetAnotherOracle = await OracleMock.new()
+
+      gno = GnoMock.new('Gnosis Token on xDai', 'GNO', 18, 1337)
       const mGnoProxy = await SBCTokenProxy.new(nobody, 'mGNO', 'mGNO')
       mGno = await SBCToken.at(mGnoProxy.address)
       await mGno.setMinter(nobody, { from: nobody })
@@ -81,6 +91,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       assertBn(await mGno.balanceOf(user3), tokens(UNLIMITED), 'user3 mGno balance check')
       const depositContractProxy = await SBCDepositContractProxy.new(nobody, mGnoProxy.address)
       depositContract = await SBCDepositContract.at(depositContractProxy.address)
+      mGnoWrapper = await SBCWrapper.new(mGno.address, depositContract.address)
       nodeOperatorsRegistryBase = await NodeOperatorsRegistry.new()
       anyToken = await ERC20Mock.new()
     } catch (e) {
@@ -97,6 +108,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       // Instantiate a proxy for the app, using the base contract as its logic implementation.
       let proxyAddress = await newApp(dao, 'lido', appBase.address, appManager)
       app = await Lido.at(proxyAddress)
+      lidoGnosis = await LidoGnosis.new(app.address, mGno.address, gno.address, mGnoWrapper.address)
 
       // NodeOperatorsRegistry
       proxyAddress = await newApp(dao, 'node-operators-registry', nodeOperatorsRegistryBase.address, appManager)
@@ -135,7 +147,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       await acl.createPermission(depositor, app.address, await app.DEPOSIT_ROLE(), appManager, { from: appManager })
 
       // Initialize the app's proxy.
-      await app.initialize(depositContract.address, oracle.address, operators.address)
+      await app.initialize(depositContract.address, oracle.address, operators.address, nobody, nobody, lidoGnosis.address)
       await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user1 })
       await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user2 })
       await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user3 })
@@ -152,7 +164,21 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       await oracle.setPool(app.address)
       await depositContract.reset()
 
-      elRewardsVault = await ELRewardsVault.new(app.address, treasuryAddr)
+      const authenticator = await GPv2AllowListAuthentication.new()
+      await authenticator.initializeManager(nobody)
+      const gPv2Settlement = await GPv2Settlement.new(authenticator.address, nobody)
+      const gPv2VaultRelayer = await GPv2VaultRelayer.new(nobody)
+      const wXDAI = await WXDAI.new()
+      elRewardsVault = await ELRewardsVault.new(
+        app.address,
+        treasuryAddr,
+        mGno.address,
+        gPv2Settlement.address,
+        gPv2VaultRelayer.address,
+        wXDAI.address,
+        gno.address,
+        mGnoWrapper.address
+      )
       rewarder = await RewardEmulatorMock.new(elRewardsVault.address)
       await assertRevert(app.setELRewardsVault(elRewardsVault.address), 'APP_AUTH_FAILED')
       let receipt = await app.setELRewardsVault(elRewardsVault.address, { from: voting })

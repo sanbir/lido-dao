@@ -4,7 +4,7 @@ const { newDao, newApp } = require('../0.4.24/helpers/dao')
 
 const { assert } = require('chai')
 
-const LidoELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVault.sol')
+const LidoELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVaultGnosis.sol')
 
 const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')
 

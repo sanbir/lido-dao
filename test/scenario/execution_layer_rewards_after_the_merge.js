@@ -10,7 +10,7 @@ const { signDepositData } = require('../0.8.9/helpers/signatures')
 const { waitBlocks } = require('../helpers/blockchain')
 const addresses = require('@aragon/contract-helpers-test/src/addresses')
 
-const LidoELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVault.sol')
+const LidoELRewardsVault = artifacts.require('LidoExecutionLayerRewardsVaultGnosis.sol')
 const RewardEmulatorMock = artifacts.require('RewardEmulatorMock.sol')
 
 const NodeOperatorsRegistry = artifacts.require('NodeOperatorsRegistry')

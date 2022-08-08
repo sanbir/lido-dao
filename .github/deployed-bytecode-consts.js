@@ -6,7 +6,7 @@ const APPS_TO_NAMES = new Map([
 
 const CONTRACTS_TO_NAMES = new Map([
   ['wstethContract', 'WstETH'],
-  ['executionLayerRewardsVault', 'LidoExecutionLayerRewardsVault'],
+  ['executionLayerRewardsVault', 'LidoExecutionLayerRewardsVaultGnosis'],
   ['compositePostRebaseBeaconReceiver', 'CompositePostRebaseBeaconReceiver'],
   ['selfOwnedStETHBurner', 'SelfOwnedStETHBurner'],
   ['depositor', 'DepositSecurityModule']
