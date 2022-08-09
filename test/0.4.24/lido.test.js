@@ -79,7 +79,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       oracle = await OracleMock.new()
       yetAnotherOracle = await OracleMock.new()
 
-      gno = GnoMock.new('Gnosis Token on xDai', 'GNO', 18, 1337)
+      gno = await GnoMock.new('Gnosis Token on xDai', 'GNO', 18, 1337)
       const mGnoProxy = await SBCTokenProxy.new(nobody, 'mGNO', 'mGNO')
       mGno = await SBCToken.at(mGnoProxy.address)
       await mGno.setMinter(nobody, { from: nobody })
@@ -108,6 +108,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
       // Instantiate a proxy for the app, using the base contract as its logic implementation.
       let proxyAddress = await newApp(dao, 'lido', appBase.address, appManager)
       app = await Lido.at(proxyAddress)
+
       lidoGnosis = await LidoGnosis.new(app.address, mGno.address, gno.address, mGnoWrapper.address)
 
       // NodeOperatorsRegistry

@@ -28,7 +28,7 @@ contract LidoGnosis is LidoErc20 {
     ) LidoErc20(_lido, _mgno) {
         require(address(_mgno) != address(0), "ZERO_MGNO_ADDRESS");
         require(address(_gno) != address(0), "ZERO_GNO_ADDRESS");
-        require(address(_mGnoWrapper) == address(0), "ZERO_MGNO_WRAPPER_ADDRESS");
+        require(address(_mGnoWrapper) != address(0), "ZERO_MGNO_WRAPPER_ADDRESS");
 
         MGNO = _mgno;
         GNO = _gno;
