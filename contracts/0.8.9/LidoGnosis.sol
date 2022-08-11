@@ -15,8 +15,6 @@ import "./interfaces/IGno.sol";
   * @title Wrapper around Lido for ERC20 token deposits
   */
 contract LidoGnosis is LidoErc20 {
-
-    IMGno public immutable MGNO;
     IGno public immutable GNO;
     address public immutable MGNO_WRAPPER;
 
@@ -26,11 +24,9 @@ contract LidoGnosis is LidoErc20 {
         IGno _gno,
         address _mGnoWrapper
     ) LidoErc20(_lido, _mgno) {
-        require(address(_mgno) != address(0), "ZERO_MGNO_ADDRESS");
         require(address(_gno) != address(0), "ZERO_GNO_ADDRESS");
         require(address(_mGnoWrapper) != address(0), "ZERO_MGNO_WRAPPER_ADDRESS");
 
-        MGNO = _mgno;
         GNO = _gno;
         MGNO_WRAPPER = _mGnoWrapper;
     }
@@ -66,8 +62,9 @@ contract LidoGnosis is LidoErc20 {
     ) external returns (bool)
     {
         address token = msg.sender;
-        require(token == address(MGNO), "MGNO_ONLY");
+        require(token == address(STAKE_TOKEN), "MGNO_ONLY");
 
+        STAKE_TOKEN.transfer(address(LIDO), _value);
         LIDO.submit(_from, _value, address(0), _IS_ERC20);
 
         return true;

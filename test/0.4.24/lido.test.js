@@ -149,9 +149,9 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
 
       // Initialize the app's proxy.
       await app.initialize(depositContract.address, oracle.address, operators.address, nobody, nobody, lidoGnosis.address)
-      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user1 })
-      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user2 })
-      await mGno.increaseAllowance(app.address, tokens(UNLIMITED), { from: user3 })
+      await mGno.increaseAllowance(lidoGnosis.address, tokens(UNLIMITED), { from: user1 })
+      await mGno.increaseAllowance(lidoGnosis.address, tokens(UNLIMITED), { from: user2 })
+      await mGno.increaseAllowance(lidoGnosis.address, tokens(UNLIMITED), { from: user3 })
 
       assert((await app.isStakingPaused()) === true)
       assert((await app.isStopped()) === true)
@@ -280,7 +280,7 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
     )
 
     try {
-      await app.submit(initialDepositAmount, ZERO_ADDRESS, { from: userAddress })
+      await lidoGnosis.submitMgno(initialDepositAmount, ZERO_ADDRESS, { from: userAddress })
       await app.methods['depositBufferedEther()']({ from: depositor })
     } catch (err) {
       console.log('err depositBufferedEther')
@@ -289,13 +289,13 @@ contract('Lido', ([appManager, voting, user1, user2, user3, nobody, depositor]) 
   }
 
   it('Native currency user deposit is expected to fail', async () => {
-    await assertRevert(web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(1) }), `NO_NATIVE_CURRENCY`)
+    await assertRevert(web3.eth.sendTransaction({ to: app.address, from: user2, value: ETH(1) }), `USE_LIDO_ETH_ERC20`)
   })
 
   it('mGNO transferAndCall works', async () => {
-    const success = await mGno.transferAndCall(app.address, tokens(32), '0x', { from: user2 })
+    const success = await mGno.transferAndCall(lidoGnosis.address, tokens(32), '0x', { from: user2 })
     assert(success)
-    assertBn(await mGno.balanceOf(app.address), tokens(32))
+    assertBn(await mGno.balanceOf(lidoGnosis.address), tokens(32))
     await app.methods['depositBufferedEther()']({ from: depositor })
     assertBn(await app.balanceOf(user2), STETH(32))
   })
